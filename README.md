@@ -24,6 +24,8 @@ npm run dev
 
 Electron 44 起核心包不再带 postinstall，二进制改为首次加载时懒下载；electron-vite 6 不会触发懒下载，因此项目根目录用 `postinstall: install-electron` 显式补齐。若下载中断，重跑 `npm run postinstall` 即可，不需要重新 `npm ci`。
 
+`git push`、`npm ci` 或 Electron 下载缓慢通常是命令行没有走代理（Windows 系统代理不作用于 CLI）。按 [命令行代理配置](docs/proxy-setup.md) 设置一次即可。
+
 若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），设置环境变量 `RELAY_DISABLE_GPU=1` 后启动，会关闭硬件加速。
 
 首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型、思考强度与权限模式都在设置里调整，也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
@@ -95,6 +97,7 @@ docs/            # v1 方案、M0 验证报告、截图
 
 - [v1 技术方案](docs/v1-tech-proposal.md)
 - [M0 技术验证报告](docs/m0-verification.md)
+- [命令行代理配置](docs/proxy-setup.md)
 
 ## 打包
 
