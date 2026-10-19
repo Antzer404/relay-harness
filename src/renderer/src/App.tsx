@@ -13,6 +13,7 @@ export function App(): React.JSX.Element {
   const fatal = useRelayStore((state) => state.fatal)
   const themeMode = useRelayStore((state) => state.themeMode)
   const platform = useRelayStore((state) => state.bootstrap?.platform ?? 'unknown')
+  const lowEffects = useRelayStore((state) => state.bootstrap?.lowEffects ?? false)
   const [resolved, setResolved] = useState<'light' | 'dark'>('light')
 
   useEffect(() => {
@@ -32,6 +33,12 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     document.documentElement.dataset.theme = resolved
   }, [resolved])
+
+  // Software compositing makes large backdrop-filter surfaces expensive, so
+  // the main process tells us when to fall back to flat surfaces.
+  useEffect(() => {
+    document.documentElement.dataset.lowfx = lowEffects ? '1' : '0'
+  }, [lowEffects])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {

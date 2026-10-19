@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { useRelayStore, type TimelineItem } from '../store/useRelayStore'
 import { useVirtualTimeline } from '../hooks/useVirtualTimeline'
 import { UserRow } from './items/UserRow'
@@ -28,6 +28,19 @@ function renderItem(item: TimelineItem): React.JSX.Element | null {
       return <NoticeRow item={item} />
   }
 }
+
+/**
+ * Historical items keep their object identity (the reducer only replaces the
+ * streaming tail), so memoized rows skip diffing and Markdown parsing while
+ * scrolling. Only the live tail re-renders per delta.
+ */
+const TimelineRow = memo(function TimelineRow({
+  item
+}: {
+  item: TimelineItem
+}): React.JSX.Element | null {
+  return renderItem(item)
+})
 
 const STARTERS = [
   '查看当前目录，简要说明这个项目在做什么',
@@ -106,7 +119,7 @@ export function Timeline(): React.JSX.Element {
                   ref={registerRow(item.id)}
                   style={{ transform: `translateY(${layout.offsets[index] ?? 0}px)` }}
                 >
-                  {renderItem(item)}
+                  <TimelineRow item={item} />
                 </div>
               )
             })}

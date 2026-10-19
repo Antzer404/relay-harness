@@ -72,6 +72,13 @@ export function createMainWindow(config: ConfigService): BrowserWindow {
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
+    // Frameless window has no menu; give dev runs a way into DevTools.
+    window.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') {
+        window.webContents.toggleDevTools()
+        event.preventDefault()
+      }
+    })
     void window.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
     void window.loadFile(join(here, '../renderer/index.html'))

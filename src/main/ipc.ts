@@ -15,6 +15,7 @@ import {
 } from '@shared/schemas'
 import type { ConfigService } from './services/config-service'
 import { RelayError, type SessionManager } from './services/session-manager'
+import { lowEffects } from './perf'
 
 interface IpcDeps {
   appVersion: string
@@ -68,6 +69,7 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
         workspaceConfig: config.readWorkspaceConfig(cwd),
         session: sessions.getCurrent(),
         sessions: sessions.getSessions(),
+        lowEffects: lowEffects(),
         sdk: sessions.getSdkInfo()
       }
     })

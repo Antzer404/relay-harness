@@ -3,6 +3,7 @@ import { ConfigService } from './services/config-service'
 import { SessionManager } from './services/session-manager'
 import { registerIpc } from './ipc'
 import { createMainWindow } from './window'
+import { logGpuStatus } from './perf'
 import { IPC_CHANNELS } from '@shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
@@ -53,6 +54,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     app.setAppUserModelId('com.antzer404.relay')
+    logGpuStatus()
 
     const userDataDir = app.getPath('userData')
     const config = new ConfigService(userDataDir)

@@ -26,7 +26,7 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 
 `git push`、`npm ci` 或 Electron 下载缓慢通常是命令行没有走代理（Windows 系统代理不作用于 CLI）。按 [命令行代理配置](docs/proxy-setup.md) 设置一次即可。
 
-若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），设置环境变量 `RELAY_DISABLE_GPU=1` 后启动，会关闭硬件加速。
+若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），设置环境变量 `RELAY_DISABLE_GPU=1` 后启动，会关闭硬件加速。启动日志会打印 `[relay] gpu compositing=...`；当合成器不是 `enabled` 时界面自动进入低特效模式（去掉大面积毛玻璃与背景模糊、对话框直接显示），优先保证滚动和动画流畅。开发模式按 F12 可打开 DevTools。
 
 首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型、思考强度与权限模式都在设置里调整，也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
 

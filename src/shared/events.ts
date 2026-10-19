@@ -229,6 +229,8 @@ export interface BootstrapState {
   workspaceConfig: WorkspaceConfigInfo
   session: SessionSummary | null
   sessions: SessionRecord[]
+  /** Chromium has no GPU compositing; the renderer drops blur-heavy effects. */
+  lowEffects: boolean
   sdk: {
     version: string
     cliVersion: string | null

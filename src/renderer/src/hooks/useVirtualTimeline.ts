@@ -70,6 +70,8 @@ export function useVirtualTimeline(options: {
   const callbacks = useRef(new Map<string, (node: HTMLDivElement | null) => void>())
   const observerRef = useRef<ResizeObserver | null>(null)
   const flushRef = useRef(0)
+  const rangeRef = useRef({ start: 0, end: 0 })
+  const viewportRef = useRef(0)
 
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(0)
@@ -164,11 +166,14 @@ export function useVirtualTimeline(options: {
   useLayoutEffect(() => {
     const node = scrollRef.current
     if (!node) return
-    setViewport(node.clientHeight)
-    const observer = new ResizeObserver(() => {
-      setViewport(node.clientHeight)
+    const apply = (): void => {
+      const height = node.clientHeight
+      viewportRef.current = height
+      setViewport(height)
       if (stickRef.current) node.scrollTop = node.scrollHeight
-    })
+    }
+    apply()
+    const observer = new ResizeObserver(apply)
     observer.observe(node)
     return () => observer.disconnect()
   }, [scrollRef])
@@ -210,9 +215,20 @@ export function useVirtualTimeline(options: {
       stickRef.current = atBottom
       setDetached(!atBottom)
     }
-    // While pinned the rendered window ignores `scrollTop`, so skipping the
-    // state write avoids a second render for every streaming delta.
-    if (!atBottom) setScrollTop(node.scrollTop)
+    if (atBottom) return
+    // Only re-render when the mounted window actually changes. Scrolling
+    // within the overscan keeps the same rows, so state stays untouched and
+    // the browser moves the existing layers without React work per frame.
+    const next = findVisibleRange(
+      layoutRef.current,
+      node.scrollTop,
+      viewportRef.current || DEFAULT_VIEWPORT,
+      OVERSCAN_PX
+    )
+    const current = rangeRef.current
+    if (next.start !== current.start || next.end !== current.end) {
+      setScrollTop(node.scrollTop)
+    }
   }, [])
 
   const scrollToBottom = useCallback(() => {
@@ -237,6 +253,10 @@ export function useVirtualTimeline(options: {
     return visible
     // `detached` participates because it flips together with stickRef.
   }, [layout, scrollTop, viewport, detached])
+
+  useLayoutEffect(() => {
+    rangeRef.current = { start: range.start, end: range.end }
+  }, [range])
 
   return {
     layout,

@@ -148,8 +148,7 @@ textarea {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  filter: blur(70px);
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .rly-ambient-blob {
@@ -157,12 +156,14 @@ textarea {
   border-radius: 50%;
 }
 
+/* Soft-edged discs instead of `filter: blur(70px)`: the blur filter costs a
+   large CPU convolution on every composite when there is no GPU. */
 .rly-ambient-a {
   width: 420px;
   height: 420px;
   left: -120px;
   top: 32%;
-  background: var(--bg-tint-a);
+  background: radial-gradient(circle closest-side, var(--bg-tint-a), transparent 100%);
 }
 
 .rly-ambient-b {
@@ -170,7 +171,7 @@ textarea {
   height: 480px;
   right: -160px;
   bottom: -140px;
-  background: var(--bg-tint-b);
+  background: radial-gradient(circle closest-side, var(--bg-tint-b), transparent 100%);
 }
 
 .rly-shell {
@@ -2256,4 +2257,55 @@ select.rly-input {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* -------------------------------------------------- software rendering mode */
+
+/*
+ * Without GPU compositing, Chromium rasterises every backdrop-filter on the
+ * CPU. Large surfaces (topbar, sidebar, scrim, dialogs) then turn 0.2s fades
+ * into a handful of frames. The main process sets data-lowfx when
+ * gpu_compositing is not `enabled`, and we swap the glass for flat surfaces:
+ * nearly opaque backgrounds keep the same layout and contrast.
+ */
+html[data-lowfx='1'] {
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --shadow-2: 0 16px 40px rgba(20, 24, 35, 0.16);
+}
+
+html[data-lowfx='1'][data-theme='dark'] {
+  --surface: rgba(27, 30, 37, 0.94);
+  --surface-strong: rgba(30, 34, 42, 0.97);
+  --shadow-2: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+html[data-lowfx='1'] .rly-topbar,
+html[data-lowfx='1'] .rly-sidebar,
+html[data-lowfx='1'] .rly-composer,
+html[data-lowfx='1'] .rly-starter,
+html[data-lowfx='1'] .rly-jump,
+html[data-lowfx='1'] .rly-scrim,
+html[data-lowfx='1'] .rly-settings,
+html[data-lowfx='1'] .rly-trace-drawer {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Keep the ambient tint but drop the two radial-gradient discs entirely in
+   software mode: they cover large areas and add nothing to legibility. */
+html[data-lowfx='1'] .rly-ambient {
+  display: none;
+}
+
+html[data-lowfx='1'] .rly-scrim {
+  background: rgba(12, 14, 20, 0.42);
+}
+
+/* Scale/opacity entrances on window-sized layers still repaint the whole
+   surface per frame in software mode; show dialogs instantly instead. */
+html[data-lowfx='1'] .rly-scrim,
+html[data-lowfx='1'] .rly-settings,
+html[data-lowfx='1'] .rly-trace-drawer {
+  animation: none;
 }
