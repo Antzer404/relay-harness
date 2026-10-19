@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { HarnessEvent } from '@shared/events'
 import { EventNormalizer } from '../src/main/runtime/normalizer'
@@ -152,6 +154,99 @@ describe('EventNormalizer', () => {
       expect(usage.usage.inputTokens).toBe(1400)
       expect(usage.usage.outputTokens).toBe(7)
       expect(usage.usage.contextTokens).toBe(1407)
+    }
+  })
+
+  it('attaches a file diff to a successful Edit result', () => {
+    const base = join(process.cwd(), '.smoke-tmp')
+    mkdirSync(base, { recursive: true })
+    const dir = mkdtempSync(join(base, 'normalizer-diff-'))
+    const file = join(dir, 'a.ts')
+    writeFileSync(file, 'const a = 1\nconst b = 2\n', 'utf8')
+
+    try {
+      const events: HarnessEvent[] = []
+      const normalizer = new EventNormalizer((event) => events.push(event))
+      normalizer.beginTurn()
+      normalizer.normalize({
+        type: 'system',
+        subtype: 'init',
+        model: 'deepseek-flash[1m]',
+        cwd: dir,
+        session_id: '00000000-0000-4000-8000-000000000099',
+        claude_code_version: '2.1.303'
+      } as unknown as SDKMessage)
+      normalizer.normalize(
+        assistant([
+          {
+            type: 'tool_use',
+            id: 'toolu_edit',
+            name: 'Edit',
+            input: { file_path: file, old_string: 'const a = 1', new_string: 'const a = 42' }
+          }
+        ])
+      )
+      normalizer.normalize({
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_edit',
+              content: [{ type: 'text', text: 'updated' }],
+              is_error: false
+            }
+          ]
+        },
+        parent_tool_use_id: null,
+        uuid: '00000000-0000-4000-8000-000000000004',
+        session_id: '00000000-0000-4000-8000-000000000099'
+      } as unknown as SDKMessage)
+
+      const toolResult = events.find((event) => event.type === 'tool_result')
+      expect(toolResult?.type).toBe('tool_result')
+      if (toolResult?.type === 'tool_result') {
+        expect(toolResult.diff).toMatchObject({ path: 'a.ts', mode: 'edit', added: 1, removed: 1 })
+      }
+
+      normalizer.beginTurn()
+      normalizer.normalize(
+        assistant([
+          {
+            type: 'tool_use',
+            id: 'toolu_edit_2',
+            name: 'Edit',
+            input: { file_path: file, old_string: 'const a = 1', new_string: 'const a = 42' }
+          }
+        ])
+      )
+      normalizer.normalize({
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_edit_2',
+              content: [{ type: 'text', text: 'failed' }],
+              is_error: true
+            }
+          ]
+        },
+        parent_tool_use_id: null,
+        uuid: '00000000-0000-4000-8000-000000000005',
+        session_id: '00000000-0000-4000-8000-000000000099'
+      } as unknown as SDKMessage)
+
+      const failed = events.filter((event) => event.type === 'tool_result')[1]
+      expect(failed?.type === 'tool_result' ? failed.diff : 'missing').toBeUndefined()
+    } finally {
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
+      } catch {
+        // The connected-folder mount in the Linux sandbox may refuse deletes.
+      }
     }
   })
 })

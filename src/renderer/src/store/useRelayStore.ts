@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type {
   BootstrapState,
   EffortLevel,
+  FileDiff,
   HarnessEvent,
   IpcResult,
   PermissionDecisionKind,
@@ -47,6 +48,7 @@ export interface ToolItem {
   input: unknown
   output?: string
   isError?: boolean
+  diff?: FileDiff
   startedAt: number
   durationMs?: number | null
   status: 'running' | 'done' | 'error'
@@ -301,7 +303,8 @@ function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): Ti
           output: event.output,
           isError: event.isError,
           durationMs: event.durationMs,
-          status: event.isError ? ('error' as const) : ('done' as const)
+          status: event.isError ? ('error' as const) : ('done' as const),
+          ...(event.diff ? { diff: event.diff } : {})
         }
       })
       return found ? next : items

@@ -34,6 +34,32 @@ export interface PermissionSuggestionView {
   mode?: string
 }
 
+export interface DiffLine {
+  kind: 'context' | 'add' | 'del'
+  text: string
+  /** Null when the hunk was rebuilt from tool input without file context. */
+  oldNo: number | null
+  newNo: number | null
+}
+
+export interface DiffHunk {
+  lines: DiffLine[]
+}
+
+export type DiffMode = 'create' | 'edit' | 'write'
+
+/** A file change computed in the main process and carried by `tool_result`. */
+export interface FileDiff {
+  path: string
+  /** create: the file did not exist; edit: known before/after; write: overwrite preview. */
+  mode: DiffMode
+  added: number
+  removed: number
+  hunks: DiffHunk[]
+  /** The diff was clipped because the file or the change set was too large. */
+  truncated: boolean
+}
+
 export type HarnessEvent =
   | {
       type: 'session_started'
@@ -61,6 +87,8 @@ export type HarnessEvent =
       output: string
       isError: boolean
       durationMs: number | null
+      /** Present for successful Edit/MultiEdit/Write calls. */
+      diff?: FileDiff
     }
   | {
       type: 'permission_request'

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { duration, prettyJson, toolSummary } from '../../lib/format'
 import type { ToolItem } from '../../store/useRelayStore'
 import { IconChevron } from '../icons'
+import { DiffView } from './DiffView'
 
 function clip(value: string, limit = 20_000): string {
   if (value.length <= limit) return value
@@ -41,6 +42,12 @@ export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
         <span className="rly-tool-summary" title={summary}>
           {summary}
         </span>
+        {item.diff ? (
+          <span className="rly-tool-diffstat" title="新增 / 删除行数">
+            <span className="is-add">+{item.diff.added}</span>
+            <span className="is-del">−{item.diff.removed}</span>
+          </span>
+        ) : null}
         <span className="rly-tool-meta">
           {item.status === 'running' ? (
             <span className="rly-tool-runner" aria-label="运行中" />
@@ -57,10 +64,17 @@ export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
 
       {open ? (
         <div className="rly-tool-detail">
-          <div className="rly-tool-block">
-            <div className="rly-tool-block-label">输入</div>
-            <pre>{clip(prettyJson(item.input))}</pre>
-          </div>
+          {item.diff ? (
+            <div className="rly-tool-block">
+              <div className="rly-tool-block-label">改动</div>
+              <DiffView diff={item.diff} />
+            </div>
+          ) : (
+            <div className="rly-tool-block">
+              <div className="rly-tool-block-label">输入</div>
+              <pre>{clip(prettyJson(item.input))}</pre>
+            </div>
+          )}
           <div className="rly-tool-block">
             <div className="rly-tool-block-label">结果</div>
             {item.output === undefined ? (

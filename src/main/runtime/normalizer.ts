@@ -1,5 +1,6 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
-import type { HarnessEvent, UsageSnapshot } from '@shared/events'
+import type { FileDiff, HarnessEvent, UsageSnapshot } from '@shared/events'
+import { buildFileDiff, FILE_EDIT_TOOLS, snapshotTarget, type TargetSnapshot } from './tool-diff'
 
 type Emit = (event: HarnessEvent) => void
 
@@ -75,6 +76,7 @@ function stringifyOutput(value: unknown): string {
  */
 export class EventNormalizer {
   private model = ''
+  private cwd = ''
   private contextWindow = 200_000
   private lastRequestUsage: RequestUsage | null = null
   private thinkingSeen = false
@@ -83,6 +85,8 @@ export class EventNormalizer {
   private thinkingBlocksDone = new Set<number>()
   private toolStartedAt = new Map<string, number>()
   private toolNames = new Map<string, string>()
+  private toolInputs = new Map<string, unknown>()
+  private editSnapshots = new Map<string, TargetSnapshot | null>()
   private currentBlockIndex = -1
 
   constructor(private readonly emit: Emit) {}
@@ -94,6 +98,8 @@ export class EventNormalizer {
     this.thinkingBlocksDone.clear()
     this.toolStartedAt.clear()
     this.toolNames.clear()
+    this.toolInputs.clear()
+    this.editSnapshots.clear()
     this.currentBlockIndex = -1
   }
 
@@ -139,6 +145,7 @@ export class EventNormalizer {
   private handleSystem(message: Extract<SDKMessage, { type: 'system' }>): void {
     if (message.subtype === 'init') {
       this.model = message.model
+      this.cwd = message.cwd
       this.emit({
         type: 'session_started',
         sessionId: message.session_id,
@@ -257,13 +264,19 @@ export class EventNormalizer {
         this.finishThinking('该段思维链已被模型加密，无法显示。')
       } else if (block.type === 'tool_use' && block.id) {
         const startedAt = this.toolStartedAt.get(block.id) ?? Date.now()
+        const name = block.name ?? 'tool'
+        const input = block.input ?? {}
         this.toolStartedAt.set(block.id, startedAt)
-        this.toolNames.set(block.id, block.name ?? 'tool')
+        this.toolNames.set(block.id, name)
+        this.toolInputs.set(block.id, input)
+        // Snapshot before the CLI executes the edit so the diff card can show
+        // the previous file content.
+        this.editSnapshots.set(block.id, FILE_EDIT_TOOLS.has(name) ? snapshotTarget(input) : null)
         this.emit({
           type: 'tool_call',
           toolUseId: block.id,
-          name: block.name ?? 'tool',
-          input: block.input ?? {},
+          name,
+          input,
           startedAt
         })
       }
@@ -275,13 +288,34 @@ export class EventNormalizer {
     if (!Array.isArray(content)) return
     for (const raw of content as unknown as ContentBlockLike[]) {
       if (raw.type !== 'tool_result' || !raw.tool_use_id) continue
-      const startedAt = this.toolStartedAt.get(raw.tool_use_id)
+      const toolUseId = raw.tool_use_id
+      const startedAt = this.toolStartedAt.get(toolUseId)
+      const isError = raw.is_error === true
+
+      let diff: FileDiff | undefined
+      if (!isError) {
+        const snapshot = this.editSnapshots.get(toolUseId)
+        if (snapshot) {
+          diff =
+            buildFileDiff(
+              this.toolNames.get(toolUseId) ?? '',
+              this.toolInputs.get(toolUseId),
+              snapshot,
+              this.cwd
+            ) ?? undefined
+        }
+      }
+
+      this.toolInputs.delete(toolUseId)
+      this.editSnapshots.delete(toolUseId)
+
       this.emit({
         type: 'tool_result',
-        toolUseId: raw.tool_use_id,
+        toolUseId,
         output: stringifyOutput(raw.content),
-        isError: raw.is_error === true,
-        durationMs: startedAt ? Date.now() - startedAt : null
+        isError,
+        durationMs: startedAt ? Date.now() - startedAt : null,
+        ...(diff ? { diff } : {})
       })
     }
   }

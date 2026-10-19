@@ -21,6 +21,8 @@
   --danger: #c2473f;
   --danger-soft: rgba(194, 71, 63, 0.1);
   --success: #2d9165;
+  --diff-add-bg: rgba(45, 145, 101, 0.1);
+  --diff-del-bg: rgba(194, 71, 63, 0.09);
   --code-bg: rgba(24, 28, 38, 0.055);
   --table-border: rgba(24, 28, 38, 0.22);
   --table-stripe: rgba(24, 28, 38, 0.035);
@@ -53,6 +55,8 @@
   --danger: #e07068;
   --danger-soft: rgba(224, 112, 104, 0.12);
   --success: #58b98b;
+  --diff-add-bg: rgba(88, 185, 139, 0.13);
+  --diff-del-bg: rgba(224, 112, 104, 0.13);
   --code-bg: rgba(255, 255, 255, 0.06);
   --table-border: rgba(255, 255, 255, 0.2);
   --table-stripe: rgba(255, 255, 255, 0.035);
@@ -956,6 +960,157 @@ textarea {
   margin: 0;
   font-size: 12px;
   color: var(--text-3);
+}
+
+.rly-tool-diffstat {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-tool-diffstat .is-add {
+  color: var(--success);
+}
+
+.rly-tool-diffstat .is-del {
+  color: var(--danger);
+}
+
+/* ------------------------------------------------------------------ diff */
+
+.rly-diff {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+
+.rly-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+  font-size: 11.5px;
+}
+
+.rly-diff-mode {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+
+.rly-diff-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.rly-diff-stat {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-diff-stat .is-add {
+  color: var(--success);
+}
+
+.rly-diff-stat .is-del {
+  color: var(--danger);
+}
+
+.rly-diff-body {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.rly-diff-hunk {
+  width: max-content;
+  min-width: 100%;
+}
+
+.rly-diff-line {
+  display: grid;
+  grid-template-columns: 44px 44px 20px minmax(0, 1fr);
+  align-items: start;
+  font-family: var(--mono);
+  font-size: 11.8px;
+  line-height: 1.65;
+}
+
+.rly-diff-line.is-add {
+  background: var(--diff-add-bg);
+}
+
+.rly-diff-line.is-del {
+  background: var(--diff-del-bg);
+}
+
+.rly-diff-no {
+  padding: 0 6px;
+  text-align: right;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.rly-diff-mark {
+  text-align: center;
+  color: var(--text-3);
+  user-select: none;
+}
+
+.rly-diff-line.is-add .rly-diff-mark {
+  color: var(--success);
+}
+
+.rly-diff-line.is-del .rly-diff-mark {
+  color: var(--danger);
+}
+
+.rly-diff-text {
+  padding: 0 10px 0 2px;
+  color: var(--text-2);
+  white-space: pre;
+}
+
+.rly-diff-gap {
+  padding: 2px 0;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 10px;
+  background: var(--surface-soft);
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  user-select: none;
+}
+
+.rly-diff-empty,
+.rly-diff-note {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.rly-diff-note {
+  border-top: 1px solid var(--border);
 }
 
 /* ------------------------------------------------------------ permission */
