@@ -28,7 +28,7 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 
 若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），设置环境变量 `RELAY_DISABLE_GPU=1` 后启动，会关闭硬件加速。启动日志会打印 `[relay] gpu compositing=...`；当合成器不是 `enabled` 时界面自动进入低特效模式（去掉大面积毛玻璃与背景模糊、对话框直接显示），优先保证滚动和动画流畅。开发模式按 F12 可打开 DevTools。
 
-首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型、思考强度与权限模式都在设置里调整，也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
+首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型与思考强度在设置里调整；权限模式可直接用输入框左下的胶囊按钮即时切换（仅作用于当前会话），也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
 
 ## 当前能力（M0）
 
@@ -42,6 +42,8 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 - 配置分级：应用默认保存在 userData；`<工作区>/.relay/settings.json` 可覆盖模型、思考强度、权限模式与追加系统提示；`.relay/settings.local.json` 保存「始终允许」权限规则。
 - 会话持久化：持久事件按轮写入 userData/sessions，重启后可浏览、重命名、删除，并通过 CLI transcript 恢复上下文。
 - 权限默认 `default`；`canUseTool` 三态（拒绝 / 本次允许 / 总是允许），内联卡片不阻塞界面，总是允许写入工作区配置；窗口关闭时自动拒绝挂起请求。
+- 权限模式即时切换：输入框左下的胶囊按钮在 `每次询问 / 仅规划 / 自动接受编辑` 之间切换，运行中的会话通过 SDK `setPermissionMode` 立刻生效并留下时间线记录；没有运行中会话时则保存为应用默认。plan 模式批准时（ExitPlanMode）按建议提供「自动接受编辑 / 逐次确认」两个选项。
+- 上下文填充率：开发者模式的事件轨迹抽屉顶部显示最近一轮的 context 占用（tokens、窗口、百分比、输入输出、缓存读写与估算成本），供长会话与 M2 交接判断使用。
 - 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
 - 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
 - 打包：Windows NSIS/portable、macOS dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。

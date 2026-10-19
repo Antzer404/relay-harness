@@ -8,7 +8,9 @@ import type {
   SessionDetail,
   SessionRecord,
   SessionSummary,
-  StartSessionOptions
+  SetPermissionModeResult,
+  StartSessionOptions,
+  VisiblePermissionMode
 } from '@shared/events'
 import { ClaudeAgentRuntime } from '../runtime/claude-agent-runtime'
 import { readSdkInfo, resolveClaudeExecutable } from '../runtime/binary'
@@ -184,6 +186,19 @@ export class SessionManager {
   async interrupt(): Promise<void> {
     if (!this.current) return
     await this.runtime.interrupt(this.current.id)
+  }
+
+  /**
+   * A live session switches immediately; with no session running the choice
+   * becomes the app default that the next session picks up.
+   */
+  async setPermissionMode(mode: VisiblePermissionMode): Promise<SetPermissionModeResult> {
+    if (this.current) {
+      await this.runtime.setPermissionMode(this.current.id, mode)
+      return { scope: 'session', mode }
+    }
+    this.config.updateSettings({ permissionMode: mode })
+    return { scope: 'default', mode }
   }
 
   respondPermission(decision: PermissionDecision): void {

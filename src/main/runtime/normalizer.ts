@@ -1,4 +1,5 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
+import { toVisiblePermissionMode } from '@shared/events'
 import type { FileDiff, HarnessEvent, UsageSnapshot } from '@shared/events'
 import { buildFileDiff, FILE_EDIT_TOOLS, snapshotTarget, type TargetSnapshot } from './tool-diff'
 
@@ -151,7 +152,8 @@ export class EventNormalizer {
         sessionId: message.session_id,
         model: message.model,
         cwd: message.cwd,
-        cliVersion: message.claude_code_version
+        cliVersion: message.claude_code_version,
+        permissionMode: toVisiblePermissionMode(message.permissionMode)
       })
       return
     }

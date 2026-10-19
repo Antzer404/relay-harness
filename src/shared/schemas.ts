@@ -77,10 +77,17 @@ export const sendSchema = z.object({
   text: z.string().min(1, '消息不能为空').max(200_000, '消息过长')
 })
 
+export const setPermissionModeSchema = z
+  .object({
+    mode: z.enum(['default', 'plan', 'acceptEdits'])
+  })
+  .strict()
+
 export const permissionDecisionSchema = z
   .object({
     requestId: z.uuid(),
     decision: z.enum(['allow', 'always', 'deny']),
-    message: z.string().max(4000).optional()
+    message: z.string().max(4000).optional(),
+    suggestionIndex: z.number().int().min(0).max(50).optional()
   })
   .strict()

@@ -1,6 +1,104 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { PERMISSION_OPTIONS, type VisiblePermissionMode } from '@shared/events'
 import { useRelayStore } from '../store/useRelayStore'
-import { IconSend, IconStop } from './icons'
+import { IconChevron, IconSend, IconStop } from './icons'
+
+const MODE_SHORT: Record<VisiblePermissionMode, string> = {
+  default: '每次询问',
+  plan: '仅规划',
+  acceptEdits: '自动接受'
+}
+
+function ModeSwitcher(): React.JSX.Element {
+  const mode = useRelayStore((state) => state.permissionMode)
+  const apply = useRelayStore((state) => state.applyPermissionMode)
+  const live = useRelayStore((state) => Boolean(state.current))
+  const modeSource = useRelayStore((state) => state.bootstrap?.effective.sources.permissionMode)
+  const [open, setOpen] = useState(false)
+  const [align, setAlign] = useState<'left' | 'right'>('left')
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (event: MouseEvent): void => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const hint = live
+    ? '切换立即作用于当前会话'
+    : modeSource && modeSource !== 'app'
+      ? '当前没有运行中的会话；工作区配置覆盖了权限模式'
+      : '当前没有运行中的会话，切换会保存为应用默认'
+
+  const choose = (next: VisiblePermissionMode): void => {
+    setOpen(false)
+    if (next === mode && live) return
+    void apply(next)
+  }
+
+  const toggle = (): void => {
+    if (!open) {
+      // Flip to the right edge of the chip when the popover would overflow.
+      const rect = rootRef.current?.getBoundingClientRect()
+      setAlign(rect && rect.left + 304 > window.innerWidth - 12 ? 'right' : 'left')
+    }
+    setOpen(!open)
+  }
+
+  return (
+    <div className="rly-mode" ref={rootRef}>
+      <button
+        type="button"
+        className={`rly-mode-chip is-${mode}${open ? ' is-open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={`权限模式：${MODE_SHORT[mode]}`}
+        onClick={toggle}
+      >
+        <span className="rly-mode-dot" aria-hidden="true" />
+        <span>{MODE_SHORT[mode]}</span>
+        <IconChevron size={12} />
+      </button>
+
+      {open ? (
+        <div className={`rly-mode-pop is-${align}`} role="menu" aria-label="权限模式">
+          <div className="rly-mode-pop-head">权限模式</div>
+          {PERMISSION_OPTIONS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={entry.id === mode}
+              className={`rly-mode-option${entry.id === mode ? ' is-active' : ''}`}
+              onClick={() => choose(entry.id)}
+            >
+              <span className="rly-mode-option-main">
+                <span className="rly-mode-option-label">{entry.label}</span>
+                <span className="rly-mode-option-note">{entry.note}</span>
+              </span>
+              <span className="rly-mode-option-check" aria-hidden="true">
+                {entry.id === mode ? '✓' : ''}
+              </span>
+            </button>
+          ))}
+          <p className="rly-mode-pop-hint">{hint}</p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 export function Composer(): React.JSX.Element {
   const draft = useRelayStore((state) => state.draft)
@@ -37,6 +135,8 @@ export function Composer(): React.JSX.Element {
       if (event.key !== 'Escape') return
       const state = useRelayStore.getState()
       if (state.drawer) return
+      // Escape inside the mode menu only closes the menu.
+      if (document.querySelector('.rly-mode-pop')) return
       if (state.phase !== 'busy' && state.phase !== 'starting') return
       event.preventDefault()
       void interrupt()
@@ -75,13 +175,16 @@ export function Composer(): React.JSX.Element {
           }}
         />
         <div className="rly-composer-bar">
-          <span className="rly-composer-hint">
-            {queued.length > 0
-              ? `已排队 ${queued.length} 条`
-              : busy
-                ? '模型正在工作'
-                : 'Enter 发送 · Shift+Enter 换行'}
-          </span>
+          <div className="rly-composer-left">
+            <ModeSwitcher />
+            <span className="rly-composer-hint">
+              {queued.length > 0
+                ? `已排队 ${queued.length} 条`
+                : busy
+                  ? '模型正在工作'
+                  : 'Enter 发送 · Shift+Enter 换行'}
+            </span>
+          </div>
           <div className="rly-composer-buttons">
             {busy ? (
               <button

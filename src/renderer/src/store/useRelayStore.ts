@@ -1,18 +1,22 @@
 import { create } from 'zustand'
-import type {
-  BootstrapState,
-  EffortLevel,
-  HarnessEvent,
-  IpcResult,
-  PermissionDecisionKind,
-  RelayEvent,
-  RelaySettings,
-  SessionPhase,
-  SessionRecord,
-  SessionSummary,
-  ThemeMode,
-  VisiblePermissionMode,
-  WorkspaceConfigValues
+import {
+  PERMISSION_OPTIONS,
+  toVisiblePermissionMode,
+  type BootstrapState,
+  type EffortLevel,
+  type HarnessEvent,
+  type IpcResult,
+  type PermissionDecisionKind,
+  type RelayEvent,
+  type RelaySettings,
+  type SessionPhase,
+  type SessionRecord,
+  type SessionSummary,
+  type SetPermissionModeResult,
+  type ThemeMode,
+  type UsageSnapshot,
+  type VisiblePermissionMode,
+  type WorkspaceConfigValues
 } from '@shared/events'
 import type {
   ErrorItem,
@@ -24,6 +28,10 @@ import type {
   ToolItem,
   UserItem
 } from '@shared/timeline'
+
+export function permissionModeLabel(mode: VisiblePermissionMode): string {
+  return PERMISSION_OPTIONS.find((entry) => entry.id === mode)?.label ?? mode
+}
 
 export type {
   ErrorItem,
@@ -55,6 +63,10 @@ export interface RelayState {
   phase: SessionPhase
   items: TimelineItem[]
   trace: RelayEvent[]
+  /** Latest context/cost snapshot; null until the first turn reports usage. */
+  usage: UsageSnapshot | null
+  /** Mode of the live session; falls back to the configured default. */
+  permissionMode: VisiblePermissionMode
   queued: string[]
   draft: string
   drawer: RightDrawer
@@ -72,6 +84,7 @@ export interface RelayState {
   send: (text: string) => Promise<void>
   flushQueue: () => Promise<void>
   interrupt: () => Promise<void>
+  applyPermissionMode: (mode: VisiblePermissionMode) => Promise<void>
   retryLast: () => Promise<void>
   newSession: () => Promise<void>
   openSession: (sessionId: string) => Promise<void>
@@ -80,7 +93,8 @@ export interface RelayState {
   respondPermission: (
     requestId: string,
     decision: PermissionDecisionKind,
-    message?: string
+    message?: string,
+    suggestionIndex?: number
   ) => Promise<void>
   openDrawer: (drawer: RightDrawer) => void
   setThemeMode: (mode: ThemeMode) => Promise<void>
@@ -269,6 +283,14 @@ function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): Ti
         at: ts
       })
 
+    case 'permission_mode':
+      return addItem(items, {
+        kind: 'notice',
+        id: nextId('notice'),
+        text: `权限模式已切换为「${permissionModeLabel(event.mode)}」`,
+        at: ts
+      })
+
     case 'compact_boundary':
       return addItem(items, {
         kind: 'notice',
@@ -315,6 +337,18 @@ function replayItems(events: RelayEvent[]): TimelineItem[] {
   return closeStreams(items, '历史记录中这一轮没有工具结果。')
 }
 
+/** The last mode recorded in a session log, falling back to the configured default. */
+function modeFromEvents(
+  events: RelayEvent[],
+  fallback: VisiblePermissionMode
+): VisiblePermissionMode {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]?.event
+    if (event?.type === 'permission_mode') return toVisiblePermissionMode(event.mode)
+  }
+  return fallback
+}
+
 // ------------------------------------------------------------------- reducer
 
 function applyEvent(state: RelayState, envelope: RelayEvent): RelayState {
@@ -341,10 +375,15 @@ function applyEvent(state: RelayState, envelope: RelayEvent): RelayState {
         items,
         phase: event.isError ? 'error' : 'idle'
       }
+    case 'usage':
+      return { ...state, trace, usage: event.usage }
+    case 'permission_mode':
+      return { ...state, trace, items, permissionMode: event.mode }
     case 'session_started':
       return {
         ...state,
         trace,
+        permissionMode: event.permissionMode,
         current: state.current
           ? {
               ...state.current,
@@ -381,6 +420,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   phase: 'idle',
   items: [],
   trace: [],
+  usage: null,
+  permissionMode: 'default',
   queued: [],
   draft: '',
   drawer: null,
@@ -406,6 +447,7 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       current: bootstrap.session,
       activeId: bootstrap.session?.id ?? null,
       phase: 'idle',
+      permissionMode: bootstrap.effective.permissionMode,
       themeMode: bootstrap.settings.theme,
       devMode: bootstrap.settings.devMode
     })
@@ -427,7 +469,14 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     if (bootstrap.session) {
       const detail = await window.relay.loadSession(bootstrap.session.id)
       if (detail.ok) {
-        set({ items: replayItems(detail.data.events), phase: 'idle' })
+        set({
+          items: replayItems(detail.data.events),
+          phase: 'idle',
+          permissionMode: modeFromEvents(
+            detail.data.events,
+            bootstrap.effective.permissionMode
+          )
+        })
       }
     }
   },
@@ -460,7 +509,12 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       sessions: result.data.sessions,
       themeMode: result.data.settings.theme,
       devMode: result.data.settings.devMode,
-      current: state.current ?? result.data.session
+      current: state.current ?? result.data.session,
+      // A live session keeps whatever mode it was switched to; otherwise the
+      // chip mirrors the configured default again.
+      permissionMode: state.current
+        ? state.permissionMode
+        : result.data.effective.permissionMode
     }))
   },
 
@@ -531,6 +585,28 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     }
   },
 
+  applyPermissionMode: async (mode) => {
+    const result = await window.relay.setPermissionMode(mode)
+    if (!result.ok) {
+      set((s) => ({ items: addItem(s.items, errorItem(result.error.message)) }))
+      return
+    }
+    set({ permissionMode: result.data.mode })
+    if (result.data.scope === 'default') {
+      await get().refreshBootstrap()
+      if (get().bootstrap?.effective.permissionMode !== mode) {
+        set((state) => ({
+          items: addItem(state.items, {
+            kind: 'notice',
+            id: nextId('notice'),
+            text: '已保存为应用默认，但当前工作区配置覆盖了权限模式。',
+            at: Date.now()
+          })
+        }))
+      }
+    }
+  },
+
   retryLast: async () => {
     const items = get().items
     for (let index = items.length - 1; index >= 0; index -= 1) {
@@ -559,6 +635,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       activeId: result.data.id,
       items: [],
       trace: [],
+      usage: null,
+      permissionMode: get().bootstrap?.effective.permissionMode ?? 'default',
       phase: 'ready'
     })
     await get().refreshSessions()
@@ -585,6 +663,11 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       current: null,
       items: replayItems(detail.data.events),
       trace: [],
+      usage: null,
+      permissionMode: modeFromEvents(
+        detail.data.events,
+        get().bootstrap?.effective.permissionMode ?? 'default'
+      ),
       queued: [],
       phase: 'idle'
     })
@@ -625,12 +708,20 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.filter((record) => record.id !== sessionId),
       ...(state.activeId === sessionId
-        ? { activeId: null, current: null, items: [], trace: [], phase: 'idle' as const }
+        ? {
+            activeId: null,
+            current: null,
+            items: [],
+            trace: [],
+            usage: null,
+            permissionMode: get().bootstrap?.effective.permissionMode ?? 'default',
+            phase: 'idle' as const
+          }
         : {})
     }))
   },
 
-  respondPermission: async (requestId, decision, message) => {
+  respondPermission: async (requestId, decision, message, suggestionIndex) => {
     set((state) => ({
       items: state.items.map((item) =>
         item.kind === 'permission' && item.requestId === requestId
@@ -641,7 +732,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     const result = await window.relay.respondPermission({
       requestId,
       decision,
-      ...(message?.trim() ? { message: message.trim() } : {})
+      ...(message?.trim() ? { message: message.trim() } : {}),
+      ...(suggestionIndex !== undefined ? { suggestionIndex } : {})
     })
     if (!result.ok) {
       set((s) => ({ items: addItem(s.items, errorItem(result.error.message)) }))

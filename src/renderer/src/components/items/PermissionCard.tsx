@@ -3,11 +3,26 @@ import { prettyJson } from '../../lib/format'
 import { permissionParamsKey } from '../../lib/item-open-state'
 import { useItemOpen } from '../../lib/use-item-open'
 
+const MODE_APPROVAL_LABEL: Record<string, string> = {
+  acceptEdits: '批准并自动接受编辑',
+  plan: '批准并保持仅规划',
+  default: '批准，之后逐次确认'
+}
+
 export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.Element {
   const respond = useRelayStore((state) => state.respondPermission)
   const [showParams, toggleParams] = useItemOpen(permissionParamsKey(item.id), false)
 
   const canAlways = item.suggestions.length > 0 && item.status === 'pending'
+
+  // ExitPlanMode-style approvals offer "switch to mode X" suggestions; each
+  // becomes its own button so the user picks the post-approval mode.
+  const modeChoices: Array<{ mode: string; index: number }> = []
+  for (const [index, suggestion] of item.suggestions.entries()) {
+    if (!suggestion.mode) continue
+    if (modeChoices.some((entry) => entry.mode === suggestion.mode)) continue
+    modeChoices.push({ mode: suggestion.mode, index })
+  }
 
   return (
     <article className={`rly-permission is-${item.status}`}>
@@ -48,7 +63,9 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
           </button>
           {showParams ? <pre className="rly-permission-params">{prettyJson(item.input)}</pre> : null}
 
-          {canAlways ? (
+          {modeChoices.length > 0 ? (
+            <p className="rly-permission-scope">批准后会切换本次会话的权限模式</p>
+          ) : canAlways ? (
             <p className="rly-permission-scope">
               始终允许会写入本工作区的 <code>.relay/settings.local.json</code>
             </p>
@@ -69,15 +86,28 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
             >
               仅本次允许
             </button>
-            <button
-              type="button"
-              className="rly-btn rly-btn-primary"
-              disabled={!canAlways}
-              title={canAlways ? undefined : 'CLI 没有提供可持久化的授权范围'}
-              onClick={() => void respond(item.requestId, 'always')}
-            >
-              始终允许
-            </button>
+            {modeChoices.length > 0 ? (
+              modeChoices.map((choice) => (
+                <button
+                  key={choice.mode}
+                  type="button"
+                  className="rly-btn rly-btn-primary"
+                  onClick={() => void respond(item.requestId, 'always', undefined, choice.index)}
+                >
+                  {MODE_APPROVAL_LABEL[choice.mode] ?? `批准并切换到 ${choice.mode}`}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                className="rly-btn rly-btn-primary"
+                disabled={!canAlways}
+                title={canAlways ? undefined : 'CLI 没有提供可持久化的授权范围'}
+                onClick={() => void respond(item.requestId, 'always')}
+              >
+                始终允许
+              </button>
+            )}
           </div>
         </>
       ) : null}

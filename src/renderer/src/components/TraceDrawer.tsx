@@ -9,6 +9,70 @@ function summarize(payload: unknown): string {
   }
 }
 
+function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
+  if (value >= 10_000) return `${Math.round(value / 1000)}k`
+  return value.toLocaleString('en-US')
+}
+
+function UsagePanel(): React.JSX.Element {
+  const usage = useRelayStore((state) => state.usage)
+
+  if (!usage) {
+    return (
+      <div className="rly-usage-panel">
+        <div className="rly-usage-head">
+          <span>上下文填充率</span>
+          <span className="rly-usage-percent">—</span>
+        </div>
+        <p className="rly-usage-empty">本轮尚未上报 usage，发送一条消息后这里会显示填充率。</p>
+      </div>
+    )
+  }
+
+  const level = usage.percent >= 90 ? 'danger' : usage.percent >= 80 ? 'warn' : 'ok'
+
+  return (
+    <div className="rly-usage-panel">
+      <div className="rly-usage-head">
+        <span>上下文填充率{usage.estimated ? <em>估算</em> : null}</span>
+        <span className={`rly-usage-percent is-${level}`}>{usage.percent.toFixed(2)}%</span>
+      </div>
+      <div className="rly-usage-bar" role="progressbar" aria-valuenow={usage.percent} aria-valuemin={0} aria-valuemax={100}>
+        <span className={`is-${level}`} style={{ width: `${Math.min(100, Math.max(0.5, usage.percent))}%` }} />
+      </div>
+      <div className="rly-usage-grid">
+        <div>
+          <span>上下文</span>
+          <em>
+            {formatTokens(usage.contextTokens)} / {formatTokens(usage.contextWindow)}
+          </em>
+        </div>
+        <div>
+          <span>本轮成本</span>
+          <em>${usage.costUsd.toFixed(4)}</em>
+        </div>
+        <div>
+          <span>输入 / 输出</span>
+          <em>
+            {formatTokens(usage.inputTokens)} / {formatTokens(usage.outputTokens)}
+          </em>
+        </div>
+        <div>
+          <span>缓存读 / 写</span>
+          <em>
+            {formatTokens(usage.cacheRead)} / {formatTokens(usage.cacheWrite)}
+          </em>
+        </div>
+        <div className="rly-usage-model">
+          <span>模型</span>
+          <em title={usage.model}>{usage.model || '—'}</em>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function TraceDrawer(): React.JSX.Element | null {
   const drawer = useRelayStore((state) => state.drawer)
   const openDrawer = useRelayStore((state) => state.openDrawer)
@@ -40,6 +104,8 @@ export function TraceDrawer(): React.JSX.Element | null {
             <IconClose />
           </button>
         </header>
+
+        <UsagePanel />
 
         {visible.length === 0 ? (
           <p className="rly-trace-empty">发送消息后，运行时事件会按顺序记录在这里。</p>

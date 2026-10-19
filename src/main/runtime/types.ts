@@ -38,6 +38,8 @@ export interface RuntimeAdapter {
   startSession(options: StartSessionOptions): Promise<RuntimeSessionHandle>
   send(sessionId: string, input: UserInput): void
   interrupt(sessionId: string): Promise<void>
+  /** Applies `mode` to a live session; resolves once the CLI acknowledged it. */
+  setPermissionMode(sessionId: string, mode: VisiblePermissionMode): Promise<void>
   respondPermission(decision: PermissionDecision): void
   denyAllPermissions(sessionId: string, reason: string): void
   getUsage(sessionId: string): UsageSnapshot | null

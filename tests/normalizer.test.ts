@@ -118,6 +118,37 @@ describe('EventNormalizer', () => {
     }
   })
 
+  it('reports the CLI permission mode at init and clamps unknown modes', () => {
+    const events: HarnessEvent[] = []
+    const normalizer = new EventNormalizer((event) => events.push(event))
+
+    normalizer.normalize({
+      type: 'system',
+      subtype: 'init',
+      model: 'deepseek-flash[1m]',
+      cwd: '/tmp',
+      session_id: '00000000-0000-4000-8000-000000000099',
+      claude_code_version: '2.1.303',
+      permissionMode: 'plan'
+    } as unknown as SDKMessage)
+    normalizer.normalize({
+      type: 'system',
+      subtype: 'init',
+      model: 'deepseek-flash[1m]',
+      cwd: '/tmp',
+      session_id: '00000000-0000-4000-8000-000000000099',
+      claude_code_version: '2.1.303',
+      permissionMode: 'bypassPermissions'
+    } as unknown as SDKMessage)
+
+    const started = events.filter((event) => event.type === 'session_started')
+    expect(started).toHaveLength(2)
+    expect(started[0]?.type === 'session_started' ? started[0].permissionMode : null).toBe('plan')
+    expect(started[1]?.type === 'session_started' ? started[1].permissionMode : null).toBe(
+      'default'
+    )
+  })
+
   it('emits an explicit empty thinking block when the model returns none', () => {
     const events: HarnessEvent[] = []
     const normalizer = new EventNormalizer((event) => events.push(event))

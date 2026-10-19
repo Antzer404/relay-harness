@@ -7,12 +7,14 @@ import {
   type Query,
   type SDKUserMessage
 } from '@anthropic-ai/claude-agent-sdk'
+import { toVisiblePermissionMode } from '@shared/events'
 import type {
   HarnessEvent,
   PermissionDecision,
   PermissionSuggestionView,
   SessionPhase,
-  UsageSnapshot
+  UsageSnapshot,
+  VisiblePermissionMode
 } from '@shared/events'
 import { EventNormalizer } from './normalizer'
 import type {
@@ -114,6 +116,21 @@ function describeSuggestion(update: PermissionUpdate): PermissionSuggestionView 
         destination: update.destination
       }
   }
+}
+
+/**
+ * Picks which permission suggestions an approval applies. "Always" without an
+ * index applies everything the CLI proposed; with an index it applies only
+ * that suggestion (used when the user picks a specific post-plan mode).
+ */
+export function selectApprovalUpdates(
+  suggestions: PermissionUpdate[],
+  decision: Pick<PermissionDecision, 'decision' | 'suggestionIndex'>
+): PermissionUpdate[] {
+  if (decision.decision !== 'always') return []
+  if (decision.suggestionIndex === undefined) return suggestions
+  const chosen = suggestions[decision.suggestionIndex]
+  return chosen ? [chosen] : []
 }
 
 function buildEnv(options: StartSessionOptions): Record<string, string> {
@@ -305,6 +322,23 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
     await state.query.interrupt()
   }
 
+  async setPermissionMode(
+    sessionId: string,
+    mode: VisiblePermissionMode
+  ): Promise<void> {
+    const state = this.sessions.get(sessionId)
+    if (!state || state.closed) throw new Error('当前会话不存在或已关闭')
+    await state.query.setPermissionMode(mode)
+    this.applyPermissionMode(state, mode)
+  }
+
+  /** Records `mode` as the session's current mode and notifies the renderer. */
+  private applyPermissionMode(state: SessionState, mode: VisiblePermissionMode): void {
+    if (state.options.permissionMode === mode) return
+    state.options.permissionMode = mode
+    this.emit(state.options.sessionId, { type: 'permission_mode', mode })
+  }
+
   respondPermission(decision: PermissionDecision): void {
     for (const state of this.sessions.values()) {
       const pending = state.permissions.get(decision.requestId)
@@ -320,15 +354,21 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         return
       }
 
-      const updatedPermissions =
-        decision.decision === 'always' && pending.rawSuggestions.length > 0
-          ? pending.rawSuggestions
-          : undefined
+      const selected = selectApprovalUpdates(pending.rawSuggestions, decision)
+      const updatedPermissions = selected.length > 0 ? selected : undefined
       if (pending.toolUseId) state.normalizer.markToolApproved(pending.toolUseId)
       pending.resolve({
         behavior: 'allow',
         ...(updatedPermissions ? { updatedPermissions } : {})
       })
+      // An approval may carry a mode change (e.g. leaving plan mode); keep the
+      // session's recorded mode in sync with what the CLI is about to apply.
+      const modeUpdate = updatedPermissions
+        ?.filter((update) => update.type === 'setMode')
+        .at(-1)
+      if (modeUpdate?.type === 'setMode') {
+        this.applyPermissionMode(state, toVisiblePermissionMode(modeUpdate.mode))
+      }
       return
     }
   }

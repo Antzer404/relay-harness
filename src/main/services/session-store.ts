@@ -31,6 +31,7 @@ function isDurable(event: HarnessEvent): boolean {
       return event.text.trim().length > 0
     case 'tool_call':
     case 'tool_result':
+    case 'permission_mode':
     case 'compact_boundary':
     case 'error':
     case 'memory_note':

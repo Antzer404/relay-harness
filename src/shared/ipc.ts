@@ -8,7 +8,9 @@ import type {
   SessionDetail,
   SessionRecord,
   SessionSummary,
+  SetPermissionModeResult,
   StartSessionOptions,
+  VisiblePermissionMode,
   WorkspaceConfigInfo,
   WorkspaceConfigValues
 } from './events'
@@ -23,6 +25,7 @@ export const IPC_CHANNELS = {
   stopSession: 'relay:stop-session',
   send: 'relay:send',
   interrupt: 'relay:interrupt',
+  setPermissionMode: 'relay:set-permission-mode',
   permissionResponse: 'relay:permission-response',
   listSessions: 'relay:list-sessions',
   loadSession: 'relay:load-session',
@@ -53,6 +56,7 @@ export interface RelayApi {
   stopSession(): Promise<IpcResult<void>>
   send(text: string): Promise<IpcResult<void>>
   interrupt(): Promise<IpcResult<void>>
+  setPermissionMode(mode: VisiblePermissionMode): Promise<IpcResult<SetPermissionModeResult>>
   respondPermission(decision: PermissionDecision): Promise<IpcResult<void>>
   listSessions(): Promise<IpcResult<SessionRecord[]>>
   loadSession(sessionId: string): Promise<IpcResult<SessionDetail>>

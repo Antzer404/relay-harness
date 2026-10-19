@@ -67,6 +67,13 @@ export type HarnessEvent =
       model: string
       cwd: string
       cliVersion: string
+      /** Authoritative mode reported by the CLI at init. */
+      permissionMode: VisiblePermissionMode
+    }
+  | {
+      type: 'permission_mode'
+      /** Emitted when the mode changes mid-session (host switch or approval). */
+      mode: VisiblePermissionMode
     }
   | { type: 'user_message'; text: string }
   | { type: 'status'; state: SessionPhase; detail?: string }
@@ -131,11 +138,30 @@ export interface PermissionDecision {
   requestId: string
   decision: PermissionDecisionKind
   message?: string
+  /**
+   * When approving with "always", apply only this suggestion (index into the
+   * request's suggestion list) instead of all of them.
+   */
+  suggestionIndex?: number
 }
 
 export type EffortLevel = 'high' | 'max'
 
 export type VisiblePermissionMode = 'default' | 'plan' | 'acceptEdits'
+
+/**
+ * The CLI can report modes Relay does not surface (`auto`, `dontAsk`, …).
+ * They all behave like the manual-approval default for our UI.
+ */
+export function toVisiblePermissionMode(value: unknown): VisiblePermissionMode {
+  return value === 'plan' || value === 'acceptEdits' ? value : 'default'
+}
+
+export interface SetPermissionModeResult {
+  /** `session`: applied to the live session; `default`: stored for the next one. */
+  scope: 'session' | 'default'
+  mode: VisiblePermissionMode
+}
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 

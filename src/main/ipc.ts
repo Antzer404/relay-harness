@@ -7,6 +7,7 @@ import {
   renameSessionSchema,
   sendSchema,
   sessionIdSchema,
+  setPermissionModeSchema,
   settingsPatchSchema,
   startSessionSchema,
   windowControlSchema,
@@ -139,6 +140,13 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
     run(async () => {
       await sessions.interrupt()
       return undefined
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.setPermissionMode, (_event, raw: unknown) =>
+    run(async () => {
+      const { mode } = setPermissionModeSchema.parse(raw)
+      return sessions.setPermissionMode(mode)
     })
   )
 
