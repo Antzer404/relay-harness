@@ -1,0 +1,49 @@
+{
+  "name": "relay-harness",
+  "version": "0.0.1",
+  "description": "Relay — a desktop agent harness built on the Claude Agent SDK, with DeepSeek as the model provider.",
+  "author": "Antzer404",
+  "license": "UNLICENSED",
+  "main": "./out/main/index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "preview": "electron-vite preview",
+    "build:app": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "smoke": "vitest run tests/smoke.sdk.test.ts --testTimeout=180000",
+    "dist": "npm run build:app && electron-builder",
+    "dist:dir": "npm run build:app && electron-builder --dir",
+    "dist:win": "npm run build:app && electron-builder --win --x64",
+    "dist:mac": "npm run build:app && electron-builder --mac",
+    "dist:mac:arm64": "npm run build:app && electron-builder --mac --arm64",
+    "dist:mac:x64": "npm run build:app && electron-builder --mac --x64",
+    "verify:package": "node scripts/verify-package.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.303",
+    "@anthropic-ai/sdk": "0.135.0",
+    "@fontsource-variable/saira": "5.3.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
+    "zod": "4.6.7",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "6.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "5.0.5"
+  }
+}

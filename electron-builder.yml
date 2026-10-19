@@ -1,0 +1,70 @@
+appId: com.antzer404.relay
+productName: Relay
+copyright: Copyright © 2026 Antzer404
+
+directories:
+  buildResources: build
+  output: release
+
+# electron-vite writes main/preload/renderer bundles to out/.
+# Production dependencies are added automatically; dev dependencies are pruned.
+files:
+  - out/**/*
+  - package.json
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.env,.env.*,.npmrc,README.md}'
+  - '!{docs,tests,scripts}/**'
+  - '!**/*.{md,map}'
+  # The SDK ships one native CLI per platform. npm may also pull the musl build
+  # on glibc Linux; never ship the duplicate.
+  - '!**/node_modules/@anthropic-ai/claude-agent-sdk-*-musl/**'
+
+asar: true
+asarUnpack:
+  # Only the per-platform packages that contain the native `claude` binary.
+  # The SDK JS itself stays inside app.asar.
+  - '**/node_modules/@anthropic-ai/claude-agent-sdk-*/**'
+
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: assets/icon.png
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Relay
+
+portable:
+  artifactName: ${productName}-${version}-portable-${arch}.${ext}
+
+mac:
+  target:
+    - target: dmg
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  # Signing + notarization are performed by the release pipeline with a real
+  # Developer ID certificate. Local unsigned builds still run for smoke tests.
+  notarize: false
+
+dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+
+publish: null

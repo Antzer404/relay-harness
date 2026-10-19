@@ -1,0 +1,61 @@
+name: package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows-x64
+            command: npm run dist:win
+            artifacts: release/*.exe
+          - os: macos-14
+            name: macos-arm64
+            command: npx electron-builder --mac --arm64
+            artifacts: release/*.dmg
+          - os: macos-13
+            name: macos-x64
+            command: npx electron-builder --mac --x64
+            artifacts: release/*.dmg
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and SDK smoke tests
+        run: npm test
+
+      - name: Build bundles
+        run: npm run build:app
+
+      - name: Package
+        run: ${{ matrix.command }}
+
+      - name: Verify SDK binary unpacked from asar
+        run: node scripts/verify-package.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
