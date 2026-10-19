@@ -78,6 +78,7 @@ export class EventNormalizer {
   private contextWindow = 200_000
   private lastRequestUsage: RequestUsage | null = null
   private thinkingSeen = false
+  private thinkingStartedAt: number | null = null
   private textBlocksDone = new Set<number>()
   private thinkingBlocksDone = new Set<number>()
   private toolStartedAt = new Map<string, number>()
@@ -88,6 +89,7 @@ export class EventNormalizer {
 
   beginTurn(): void {
     this.thinkingSeen = false
+    this.thinkingStartedAt = null
     this.textBlocksDone.clear()
     this.thinkingBlocksDone.clear()
     this.toolStartedAt.clear()
@@ -100,6 +102,16 @@ export class EventNormalizer {
     if (this.toolStartedAt.has(toolUseId)) {
       this.toolStartedAt.set(toolUseId, Date.now())
     }
+  }
+
+  private finishThinking(text: string): void {
+    const started = this.thinkingStartedAt
+    this.thinkingStartedAt = null
+    this.emit({
+      type: 'thinking_done',
+      text,
+      durationMs: started ? Date.now() - started : null
+    })
   }
 
   normalize(message: SDKMessage): void {
@@ -182,6 +194,9 @@ export class EventNormalizer {
         const index = evt.index ?? 0
         this.currentBlockIndex = index
         const block = evt.content_block
+        if (block?.type === 'thinking' || block?.type === 'redacted_thinking') {
+          this.thinkingStartedAt ??= Date.now()
+        }
         if (block?.type === 'tool_use' && block.id) {
           this.toolStartedAt.set(block.id, Date.now())
           this.toolNames.set(block.id, block.name ?? 'tool')
@@ -194,6 +209,7 @@ export class EventNormalizer {
           this.emit({ type: 'text_delta', text: delta.text })
         } else if (delta?.type === 'thinking_delta' && delta.thinking) {
           this.thinkingSeen = true
+          this.thinkingStartedAt ??= Date.now()
           this.emit({ type: 'thinking_delta', text: delta.thinking })
         }
         break
@@ -235,10 +251,10 @@ export class EventNormalizer {
         this.emit({ type: 'text_done', text: block.text })
       } else if (block.type === 'thinking') {
         this.thinkingSeen = true
-        this.emit({ type: 'thinking_done', text: block.thinking ?? '' })
+        this.finishThinking(block.thinking ?? '')
       } else if (block.type === 'redacted_thinking') {
         this.thinkingSeen = true
-        this.emit({ type: 'thinking_done', text: '该段思维链已被模型加密，无法显示。' })
+        this.finishThinking('该段思维链已被模型加密，无法显示。')
       } else if (block.type === 'tool_use' && block.id) {
         const startedAt = this.toolStartedAt.get(block.id) ?? Date.now()
         this.toolStartedAt.set(block.id, startedAt)

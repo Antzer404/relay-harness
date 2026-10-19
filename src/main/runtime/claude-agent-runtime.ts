@@ -214,8 +214,15 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       permissionMode: options.permissionMode,
       includePartialMessages: true,
       canUseTool,
-      systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const },
+      systemPrompt: {
+        type: 'preset' as const,
+        preset: 'claude_code' as const,
+        ...(options.systemPromptAppend ? { append: options.systemPromptAppend } : {})
+      },
       settingSources: ['project' as const],
+      ...(options.allowedTools && options.allowedTools.length > 0
+        ? { allowedTools: options.allowedTools }
+        : {}),
       env: buildEnv(options),
       stderr: (data: string) => {
         const line = data.trim()
@@ -223,7 +230,9 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         state.stderr.push(line)
         if (state.stderr.length > 40) state.stderr.shift()
       },
-      ...(options.resume ? { resume: options.sessionId } : { sessionId: options.sessionId }),
+      ...(options.cliSessionId
+        ? { resume: options.cliSessionId }
+        : { sessionId: options.sessionId }),
       ...(options.executablePath ? { pathToClaudeCodeExecutable: options.executablePath } : {})
     }
 
@@ -332,6 +341,11 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       pending.resolve({ behavior: 'deny', message: reason })
       state.permissions.delete(requestId)
     }
+  }
+
+  /** Diagnostic access to the CLI's stderr tail (used by smoke tests). */
+  stderrTail(sessionId: string): string[] {
+    return [...(this.sessions.get(sessionId)?.stderr ?? [])]
   }
 
   getUsage(sessionId: string): UsageSnapshot | null {

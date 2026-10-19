@@ -1,11 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { HarnessEvent } from '@shared/events'
 import { ClaudeAgentRuntime } from '../src/main/runtime/claude-agent-runtime'
 import { startMockAnthropic, type MockAnthropicServer } from './helpers/mock-anthropic'
+
+// Keep smoke fixtures inside the repo instead of the OS temp directory:
+// on Windows, %TEMP% is subject to security software, ACLs and scan locks
+// that have produced spurious EPERM failures on the CLI's atomic writes.
+const SMOKE_BASE = process.env.RELAY_SMOKE_BASE ?? join(process.cwd(), '.smoke-tmp')
 
 async function waitFor<T>(
   read: () => T | undefined,
@@ -31,14 +35,27 @@ describe('ClaudeAgentRuntime + mock Anthropic endpoint', () => {
   afterEach(async () => {
     await runtime?.disposeAll()
     await mock?.close()
-    if (root) rmSync(root, { recursive: true, force: true })
+    if (root) {
+      // On Windows the CLI child process can briefly keep a handle on its cwd
+      // after close(); retry until the directory is removable.
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 })
+          break
+        } catch (error) {
+          if (attempt >= 20) throw error
+          await new Promise((resolve) => setTimeout(resolve, 250))
+        }
+      }
+    }
     runtime = null
     mock = null
     root = null
   })
 
   it('streams thinking, runs a permission-gated tool and reports usage', async () => {
-    root = mkdtempSync(join(tmpdir(), 'relay-smoke-'))
+    mkdirSync(SMOKE_BASE, { recursive: true })
+    root = mkdtempSync(join(SMOKE_BASE, 'run-'))
     const workspace = join(root, 'workspace')
     const configDir = join(root, 'claude-config')
     mkdirSync(workspace)
@@ -107,7 +124,18 @@ describe('ClaudeAgentRuntime + mock Anthropic endpoint', () => {
 
     const toolResult = events.find((event) => event.type === 'tool_result')
     if (toolResult?.type === 'tool_result') {
-      expect(toolResult.isError).toBe(false)
+      if (toolResult.isError) {
+        const permissionInput = events.find((event) => event.type === 'permission_request')
+        console.error('[smoke] tool_result.error:', toolResult.output)
+        console.error(
+          '[smoke] permission input:',
+          permissionInput?.type === 'permission_request'
+            ? JSON.stringify(permissionInput.input)
+            : '(none)'
+        )
+        console.error('[smoke] cli stderr:', runtime.stderrTail(sessionId).join('\n') || '(empty)')
+      }
+      expect(toolResult.isError, `tool output: ${toolResult.output}`).toBe(false)
       expect(toolResult.durationMs).not.toBeNull()
     }
 

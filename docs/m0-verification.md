@@ -100,6 +100,16 @@ npm test                7 passed
 - Linux 容器没有 keyring：`safeStorage.isEncryptionAvailable()` 为 false，应用按设计退化为内存保存；`settings.json` 中 `apiKey` 为 `null`，没有明文落盘。
 - Windows（DPAPI）与 macOS（Keychain）路径已在代码中启用，需在目标机做一次“保存 → 重启 → 会话可用”的确认。
 
+### 3.6 Windows 本机基线（2026-10-19，进行中）
+
+目标机：Windows 11 24H2（build 26100）、Node v24.16.0、npm 11.13.0、x64；终端为管理员（High Integrity）。
+
+- `npm ci`、`npm run typecheck` 通过；`npm test` 7 passed，smoke 用例在 Windows 上真实拉起 `claude.exe`（277 MB，嵌套布局 `node_modules/@anthropic-ai/claude-agent-sdk/node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/`）跑通 mock 闭环。
+- 期间遇到一次不可复现的失败：Write 工具原子写在 `%LOCALAPPDATA%\Temp` 下 `open` 报 `EPERM`。已排除第三方安全软件、Defender CFA/ASR/拦截记录、AppLocker、Smart App Control、managed settings 与 TEMP ACL；对照实验显示管理员权限与 C/D 盘均非原因，整理终端环境后默认 TEMP 也无法复现，归档为环境异常。
+- 改进：smoke 测试临时目录改为仓库内 `.smoke-tmp/`（`RELAY_SMOKE_BASE` 可覆盖），不再依赖系统 TEMP；测试在工具失败时输出 `tool_result` 原文、权限入参和 CLI stderr；收尾删除对 Windows 文件锁做退避重试；新增 `ClaudeAgentRuntime.stderrTail()` 与 `scripts/win-m0-diag.ps1` 诊断脚本。
+- CLI stderr 出现 `[claude-code:unrecognized_model] deepseek-flash[1m]`，mock 场景不影响请求，真实 key 时再确认。
+- 待补：真实 key 闭环（thinking/审批/usage/多轮不 400）、DPAPI 重启解密、`npm run dist:win` 出包与 Defender/SmartScreen 检查。
+
 ---
 
 ## 4. 已知问题与下一步

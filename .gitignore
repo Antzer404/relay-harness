@@ -7,6 +7,10 @@ out/
 release/
 coverage/
 
+# Test fixtures (repo-local temp dirs)
+.smoke-tmp/
+.smoke-temp/
+
 # Logs
 *.log
 npm-debug.log*

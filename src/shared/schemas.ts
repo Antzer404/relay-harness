@@ -25,16 +25,53 @@ export const settingsPatchSchema = z
     model: z.string().trim().min(1).max(200).optional(),
     effort: z.enum(['high', 'max']).optional(),
     permissionMode: z.enum(['default', 'plan', 'acceptEdits']).optional(),
-    workspace: z.string().trim().min(1).max(4096).optional()
+    workspace: z.string().trim().min(1).max(4096).optional(),
+    theme: z.enum(['light', 'dark', 'system']).optional(),
+    devMode: z.boolean().optional()
   })
   .strict()
 
 export const startSessionSchema = z
   .object({
-    cwd: z.string().trim().min(1).max(4096).optional(),
-    resumeSessionId: z.uuid().optional()
+    sessionId: z.uuid().optional()
   })
   .strict()
+
+export const sessionIdSchema = z.object({
+  sessionId: z.uuid()
+})
+
+export const renameSessionSchema = z
+  .object({
+    sessionId: z.uuid(),
+    title: z.string().trim().min(1, '标题不能为空').max(120, '标题过长')
+  })
+  .strict()
+
+export const workspaceConfigSchema = z
+  .object({
+    cwd: z.string().trim().min(1).max(4096).optional(),
+    values: z
+      .object({
+        model: z.string().trim().min(1).max(200).optional(),
+        effort: z.enum(['high', 'max']).optional(),
+        permissionMode: z.enum(['default', 'plan', 'acceptEdits']).optional(),
+        systemPromptAppend: z.string().max(20_000).optional(),
+        allowedTools: z.array(z.string().trim().min(1).max(400)).max(200).optional()
+      })
+      .strict()
+  })
+  .strict()
+
+export const workspaceConfigCwdSchema = z
+  .object({
+    cwd: z.string().trim().min(1).max(4096).optional()
+  })
+  .strict()
+
+export const windowControlSchema = z.object({
+  action: z.enum(['minimize', 'toggle-maximize', 'close'])
+})
 
 export const sendSchema = z.object({
   text: z.string().min(1, '消息不能为空').max(200_000, '消息过长')

@@ -20,6 +20,27 @@ function wireWindow(window: BrowserWindow): void {
   })
 }
 
+// Some Windows machines (VMs, remote sessions, locked-down GPU drivers) cannot
+// launch Chromium's GPU process; this console UI does not need hardware
+// acceleration, so allow opting out without a code change.
+if (process.env.RELAY_DISABLE_GPU === '1') {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+  // Keep the GPU pipeline in the browser process when a child GPU process
+  // cannot be spawned at all.
+  app.commandLine.appendSwitch('in-process-gpu')
+  console.log('[relay] hardware acceleration disabled (RELAY_DISABLE_GPU=1)')
+}
+
+// Last-resort switch for environments where Chromium child process launch is
+// blocked by an external sandbox/policy. Dev only.
+if (process.env.RELAY_NO_SANDBOX === '1') {
+  app.commandLine.appendSwitch('no-sandbox')
+  console.log('[relay] Chromium sandbox disabled (RELAY_NO_SANDBOX=1)')
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
@@ -45,7 +66,7 @@ if (!gotLock) {
       }
     })
 
-    mainWindow = createMainWindow()
+    mainWindow = createMainWindow(config)
     wireWindow(mainWindow)
     registerIpc({
       appVersion: app.getVersion(),
@@ -56,7 +77,7 @@ if (!gotLock) {
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createMainWindow()
+        mainWindow = createMainWindow(config)
         wireWindow(mainWindow)
       }
     })

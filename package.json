@@ -8,6 +8,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "postinstall": "install-electron",
     "dev": "electron-vite dev",
     "preview": "electron-vite preview",
     "build:app": "electron-vite build",

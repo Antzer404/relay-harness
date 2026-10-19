@@ -2,20 +2,13 @@
 
 桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
 
-> 状态：**M0 技术验证完成**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限 + usage 仪表均已跑通；真实 DeepSeek key 的长会话回归待补测。详见 [M0 验证报告](docs/m0-verification.md)。
+> 状态：**M0 技术验证完成，M1 基础已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面已换代为现代毛玻璃布局，并加入配置分级与会话持久化。详见 [M0 验证报告](docs/m0-verification.md)。
 
 ## 快速开始
 
 要求：Node.js ≥ 22.12，Windows 10/11 或 macOS。
 
-```bash
-npm ci
-npm run dev
-```
-
-首次启动在右侧 `SETUP` 面板填入 DeepSeek API Key（`sk-...`），保存后点左侧「新建会话」。
-
-中国网络环境下可先切换镜像：
+中国网络环境下建议先切镜像（Electron 本体在安装时下载，镜像须在 `npm ci` 之前设置）：
 
 ```bash
 npm config set registry https://registry.npmmirror.com
@@ -24,18 +17,32 @@ $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
 $env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
 ```
 
+```bash
+npm ci        # postinstall 会自动下载 Electron 本体（约 200 MB）
+npm run dev
+```
+
+Electron 44 起核心包不再带 postinstall，二进制改为首次加载时懒下载；electron-vite 6 不会触发懒下载，因此项目根目录用 `postinstall: install-electron` 显式补齐。若下载中断，重跑 `npm run postinstall` 即可，不需要重新 `npm ci`。
+
+若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），设置环境变量 `RELAY_DISABLE_GPU=1` 后启动，会关闭硬件加速。
+
+首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型、思考强度与权限模式都在设置里调整，也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
+
 ## 当前能力（M0）
 
 - electron-vite 单包分层：`src/main`、`src/preload`、`src/renderer`、`src/shared`。
 - `@anthropic-ai/claude-agent-sdk@0.3.303` 精确锁定；SDK 平台包自带 CLI，无需用户安装。
 - DeepSeek Anthropic 兼容端点：`ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`，鉴权走 `ANTHROPIC_AUTH_TOKEN`。
 - 密钥由主进程 `safeStorage` 加密保存；系统安全存储不可用时只保存在内存，不落明文。
-- 最小控制台：流式文本、thinking 折叠块、工具调用卡、权限三态弹窗、上下文/成本仪表、事件轨迹、浅色/深色主题。
-- 权限默认 `default`；`canUseTool` 三态（拒绝 / 本次允许 / 总是允许）；窗口关闭时自动拒绝挂起请求。
+- 极简控制台：顶栏 + 会话栏 + 时间线，无右侧检查器；流式文本、思维链折叠（显示思考耗时）、紧凑工具卡、时间线内联权限卡；浅色 / 深色 / 跟随系统；不在主界面展示 token 与成本。
+- 配置分级：应用默认保存在 userData；`<工作区>/.relay/settings.json` 可覆盖模型、思考强度、权限模式与追加系统提示；`.relay/settings.local.json` 保存「始终允许」权限规则。
+- 会话持久化：持久事件按轮写入 userData/sessions，重启后可浏览、重命名、删除，并通过 CLI transcript 恢复上下文。
+- 权限默认 `default`；`canUseTool` 三态（拒绝 / 本次允许 / 总是允许），内联卡片不阻塞界面，总是允许写入工作区配置；窗口关闭时自动拒绝挂起请求。
+- 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
 - 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
 - 打包：Windows NSIS/portable、macOS dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
 
-尚未实现（M1/M2）：会话持久化与恢复、diff 卡、双轨记忆、交接、Cowork。
+尚未实现（M1/M2）：diff 卡、双轨记忆、交接、Cowork。
 
 ## 目录
 
@@ -49,7 +56,7 @@ src/
     window.ts
     index.ts
   preload/       # contextBridge 暴露最小 window.relay
-  renderer/      # React 19 + Zustand + endfield 风格 CSS
+  renderer/      # React 19 + Zustand + 毛玻璃 CSS（时间线 / 设置 / 事件抽屉）
 tests/           # 归一化单测、路径单测、SDK + mock 端点闭环
 scripts/         # 打包产物校验
 docs/            # v1 方案、M0 验证报告、截图

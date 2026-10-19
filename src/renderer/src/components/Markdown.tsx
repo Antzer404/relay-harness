@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm'
 
 export function Markdown({ text }: { text: string }): React.JSX.Element {
   return (
-    <div className="ef-markdown">
+    <div className="rly-markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

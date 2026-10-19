@@ -1,20 +1,27 @@
-import { clock } from '../../lib/format'
-import type { ErrorItem } from '../../store/useRelayStore'
+import { useRelayStore, type ErrorItem } from '../../store/useRelayStore'
 
 export function ErrorBanner({ item }: { item: ErrorItem }): React.JSX.Element {
+  const retryLast = useRelayStore((state) => state.retryLast)
+  const phase = useRelayStore((state) => state.phase)
+  const busy = phase === 'busy' || phase === 'starting'
+
   return (
-    <article className="ef-alert" role="alert">
-      <div className="ef-alert-flag" aria-hidden="true" />
-      <div className="ef-alert-body">
-        <div className="ef-alert-head">
-          <span className="ef-label">ERROR</span>
-          <span className="ef-field">
-            {item.retryable ? '可重试' : '需要处理'} <span className="ef-sep">│</span>{' '}
-            {clock(item.at)}
-          </span>
-        </div>
+    <article className="rly-error" role="alert">
+      <span className="rly-error-mark" aria-hidden="true">
+        !
+      </span>
+      <div className="rly-error-body">
         <p>{item.message}</p>
+        {item.retryable ? <span className="rly-error-hint">可重试</span> : null}
       </div>
+      <button
+        type="button"
+        className="rly-btn rly-btn-ghost"
+        disabled={busy}
+        onClick={() => void retryLast()}
+      >
+        重试上一条
+      </button>
     </article>
   )
 }

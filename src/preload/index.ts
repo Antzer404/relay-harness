@@ -9,10 +9,22 @@ const api: RelayApi = {
   saveSettings: (patch) => ipcRenderer.invoke(IPC_CHANNELS.saveSettings, patch),
   chooseWorkspace: () => ipcRenderer.invoke(IPC_CHANNELS.chooseWorkspace),
   startSession: (options) => ipcRenderer.invoke(IPC_CHANNELS.startSession, options ?? {}),
+  stopSession: () => ipcRenderer.invoke(IPC_CHANNELS.stopSession),
   send: (text) => ipcRenderer.invoke(IPC_CHANNELS.send, { text }),
   interrupt: () => ipcRenderer.invoke(IPC_CHANNELS.interrupt),
   respondPermission: (decision) =>
     ipcRenderer.invoke(IPC_CHANNELS.permissionResponse, decision),
+  listSessions: () => ipcRenderer.invoke(IPC_CHANNELS.listSessions),
+  loadSession: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.loadSession, { sessionId }),
+  renameSession: (sessionId, title) =>
+    ipcRenderer.invoke(IPC_CHANNELS.renameSession, { sessionId, title }),
+  deleteSession: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.deleteSession, { sessionId }),
+  readWorkspaceConfig: (cwd) => ipcRenderer.invoke(IPC_CHANNELS.readWorkspaceConfig, { cwd }),
+  writeWorkspaceConfig: (cwd, values) =>
+    ipcRenderer.invoke(IPC_CHANNELS.writeWorkspaceConfig, { cwd, values }),
+  clearWorkspaceConfig: (cwd) =>
+    ipcRenderer.invoke(IPC_CHANNELS.clearWorkspaceConfig, { cwd }),
+  windowControl: (action) => ipcRenderer.invoke(IPC_CHANNELS.windowControl, { action }),
   onEvent: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: RelayEvent): void => {
       callback(payload)
@@ -29,6 +41,15 @@ const api: RelayApi = {
     ipcRenderer.on(IPC_CHANNELS.permissionCancelled, listener)
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.permissionCancelled, listener)
+    }
+  },
+  onWindowMaximized: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, maximized: boolean): void => {
+      callback(maximized)
+    }
+    ipcRenderer.on(IPC_CHANNELS.windowMaximized, listener)
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.windowMaximized, listener)
     }
   }
 }

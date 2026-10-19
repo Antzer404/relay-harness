@@ -1,42 +1,75 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRelayStore } from './store/useRelayStore'
-import { CommandBar } from './components/CommandBar'
-import { SessionRail } from './components/SessionRail'
+import { TopBar } from './components/TopBar'
+import { Sidebar } from './components/Sidebar'
 import { Timeline } from './components/Timeline'
 import { Composer } from './components/Composer'
-import { RightPanel } from './components/RightPanel'
-import { PermissionModal } from './components/PermissionModal'
+import { SettingsDialog } from './components/SettingsDialog'
+import { TraceDrawer } from './components/TraceDrawer'
 
 export function App(): React.JSX.Element {
   const init = useRelayStore((state) => state.init)
   const bootstrapped = useRelayStore((state) => state.bootstrapped)
   const fatal = useRelayStore((state) => state.fatal)
-  const theme = useRelayStore((state) => state.theme)
+  const themeMode = useRelayStore((state) => state.themeMode)
   const platform = useRelayStore((state) => state.bootstrap?.platform ?? 'unknown')
+  const [resolved, setResolved] = useState<'light' | 'dark'>('light')
 
   useEffect(() => {
     void init()
   }, [init])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (): void => {
+      setResolved(themeMode === 'system' ? (query.matches ? 'dark' : 'light') : themeMode)
+    }
+    apply()
+    query.addEventListener('change', apply)
+    return () => query.removeEventListener('change', apply)
+  }, [themeMode])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolved
+  }, [resolved])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const state = useRelayStore.getState()
+      if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+        event.preventDefault()
+        state.openDrawer('settings')
+        return
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+        event.preventDefault()
+        state.setSidebarOpen(!state.sidebarOpen)
+        return
+      }
+      if (event.key === 'Escape' && state.drawer) {
+        state.openDrawer(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
-    <div className="ef-app" data-platform={platform}>
-      <CommandBar />
-      <div className="ef-body">
-        <SessionRail />
-        <main className="ef-main">
-          <div className="ef-tricolor" aria-hidden="true" />
+    <div className="rly-app" data-platform={platform} data-theme={resolved}>
+      <div className="rly-ambient" aria-hidden="true">
+        <span className="rly-ambient-blob rly-ambient-a" />
+        <span className="rly-ambient-blob rly-ambient-b" />
+      </div>
+
+      <TopBar />
+      <div className="rly-shell">
+        <Sidebar />
+        <main className="rly-main">
           {fatal ? (
-            <div className="ef-fatal">
-              <div className="ef-flag" aria-hidden="true" />
-              <div>
-                <div className="ef-label">RUNTIME ERROR</div>
-                <div className="ef-fatal-title">运行时不可用</div>
-                <p>{fatal}</p>
-              </div>
+            <div className="rly-fatal">
+              <div className="rly-fatal-mark">!</div>
+              <h1>运行时不可用</h1>
+              <p>{fatal}</p>
             </div>
           ) : bootstrapped ? (
             <>
@@ -44,15 +77,16 @@ export function App(): React.JSX.Element {
               <Composer />
             </>
           ) : (
-            <div className="ef-loading">
-              <span className="ef-label">BOOTING</span>
+            <div className="rly-booting">
+              <span className="rly-booting-dot" />
               <span>正在读取本机配置…</span>
             </div>
           )}
         </main>
-        <RightPanel />
       </div>
-      <PermissionModal />
+
+      <SettingsDialog />
+      <TraceDrawer />
     </div>
   )
 }

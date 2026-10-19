@@ -1,103 +1,71 @@
 import { useEffect, useRef } from 'react'
 import { useRelayStore } from '../store/useRelayStore'
-import { cost, number, shortModel } from '../lib/format'
+import { IconSend, IconStop } from './icons'
 
 export function Composer(): React.JSX.Element {
   const draft = useRelayStore((state) => state.draft)
   const setDraft = useRelayStore((state) => state.setDraft)
   const send = useRelayStore((state) => state.send)
   const interrupt = useRelayStore((state) => state.interrupt)
-  const session = useRelayStore((state) => state.session)
   const phase = useRelayStore((state) => state.phase)
-  const usage = useRelayStore((state) => state.usage)
-  const bootstrap = useRelayStore((state) => state.bootstrap)
+  const queued = useRelayStore((state) => state.queued)
+  const hasKey = useRelayStore((state) => state.bootstrap?.hasApiKey ?? false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const busy = phase === 'busy' || phase === 'starting'
-  const hasKey = bootstrap?.hasApiKey ?? false
-  const ready = Boolean(session) && hasKey && !busy
-  const percent = usage?.percent ?? 0
-  const high = percent >= 75
+  const canSend = hasKey && draft.trim().length > 0
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     const node = textareaRef.current
     if (!node) return
     node.style.height = '0px'
-    node.style.height = `${Math.min(node.scrollHeight, 168)}px`
+    node.style.height = `${Math.min(node.scrollHeight, 200)}px`
   }, [draft])
 
+  useEffect(() => {
+    const focus = (): void => textareaRef.current?.focus()
+    window.addEventListener('relay:focus-composer', focus)
+    return () => window.removeEventListener('relay:focus-composer', focus)
+  }, [])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      const state = useRelayStore.getState()
+      if (state.drawer) return
+      if (state.phase !== 'busy' && state.phase !== 'starting') return
+      event.preventDefault()
+      void interrupt()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [interrupt])
+
   const submit = (): void => {
-    if (!ready) return
-    const text = draft
-    if (!text.trim()) return
-    void send(text)
+    if (!canSend) return
+    void send(draft)
   }
 
-  return (
-    <section className="ef-composer">
-      <div className="ef-meter">
-        <div className="ef-meter-labels">
-          <span className="ef-label">CONTEXT</span>
-          <span className="ef-num">
-            {usage
-              ? `${number(usage.contextTokens)} / ${number(usage.contextWindow)}`
-              : '等待首轮用量'}
-          </span>
-          <span className={`ef-meter-pct ef-num${high ? ' is-high' : ''}`}>
-            {usage ? `${percent.toFixed(1)}%` : '—'}
-          </span>
-          <span className="ef-meter-spacer" />
-          <span className="ef-field">
-            IN <span className="ef-num">{usage ? number(usage.inputTokens) : '—'}</span>
-            <span className="ef-sep">│</span>
-            OUT <span className="ef-num">{usage ? number(usage.outputTokens) : '—'}</span>
-            <span className="ef-sep">│</span>
-            CACHE{' '}
-            <span className="ef-num">
-              {usage ? number(usage.cacheRead + usage.cacheWrite) : '—'}
-            </span>
-            <span className="ef-sep">│</span>
-            SESSION <span className="ef-num">{usage ? cost(usage.costUsd) : '—'}</span>
-          </span>
-        </div>
-        <div
-          className={`ef-meter-track${high ? ' is-high' : ''}`}
-          role="meter"
-          aria-label="上下文占用"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-        >
-          <span className="ef-meter-fill" style={{ width: `${Math.min(100, percent)}%` }} />
-          <span className="ef-meter-tick" style={{ left: '75%' }} aria-hidden="true" />
-        </div>
-        <div className="ef-meter-foot">
-          <span className="ef-label">
-            {high ? '上下文接近上限' : usage ? '用量为估算值' : '尚未收到 usage'}
-          </span>
-          <span className="ef-field">
-            {shortModel(usage?.model ?? session?.model)} <span className="ef-sep">│</span>{' '}
-            {usage ? 'CLI USAGE' : 'NO DATA'}
-          </span>
-        </div>
-      </div>
+  const placeholder = !hasKey
+    ? '先在设置中保存 DeepSeek API Key'
+    : busy
+      ? '运行中，Enter 可把消息加入队列'
+      : '输入任务，Enter 发送，Shift+Enter 换行'
 
-      <div className="ef-compose-row">
+  return (
+    <div className="rly-composer-dock">
+      <div className="rly-composer">
         <textarea
           ref={textareaRef}
-          className="ef-textarea"
+          className="rly-textarea"
           rows={1}
           value={draft}
-          placeholder={
-            !hasKey
-              ? '先在右侧 SETUP 保存 DeepSeek API Key'
-              : !session
-                ? '点击左侧「新建会话」后开始'
-                : busy
-                  ? '当前轮运行中，可点右侧停止'
-                  : '输入任务，Enter 发送，Shift+Enter 换行'
-          }
-          disabled={!session || !hasKey}
+          placeholder={placeholder}
+          disabled={!hasKey}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || event.shiftKey) return
@@ -106,32 +74,39 @@ export function Composer(): React.JSX.Element {
             submit()
           }}
         />
-        {busy ? (
-          <button
-            type="button"
-            className="ef-button ef-button-stop"
-            onClick={() => void interrupt()}
-          >
-            停止
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="ef-button ef-button-primary"
-            disabled={!ready || draft.trim().length === 0}
-            onClick={submit}
-          >
-            发送
-          </button>
-        )}
+        <div className="rly-composer-bar">
+          <span className="rly-composer-hint">
+            {queued.length > 0
+              ? `已排队 ${queued.length} 条`
+              : busy
+                ? '模型正在工作'
+                : 'Enter 发送 · Shift+Enter 换行'}
+          </span>
+          <div className="rly-composer-buttons">
+            {busy ? (
+              <button
+                type="button"
+                className="rly-stop-btn"
+                onClick={() => void interrupt()}
+              >
+                <IconStop />
+                <span>停止</span>
+              </button>
+            ) : null}
+            {!busy || canSend ? (
+              <button
+                type="button"
+                className="rly-send-btn"
+                disabled={!canSend}
+                aria-label={busy ? '加入队列' : '发送'}
+                onClick={submit}
+              >
+                <IconSend />
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
-
-      <div className="ef-compose-foot">
-        <span className="ef-label">ENTER 发送 │ SHIFT+ENTER 换行</span>
-        <span className="ef-field">
-          {draft.length} 字 <span className="ef-sep">│</span> {shortModel(session?.model)}
-        </span>
-      </div>
-    </section>
+    </div>
   )
 }

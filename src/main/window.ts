@@ -1,26 +1,27 @@
 import { BrowserWindow, shell } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { IPC_CHANNELS } from '@shared/ipc'
+import type { ConfigService } from './services/config-service'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-export function createMainWindow(): BrowserWindow {
+export function createMainWindow(config: ConfigService): BrowserWindow {
   const isMac = process.platform === 'darwin'
-  const isWindows = process.platform === 'win32'
+  const saved = config.getWindowState()
 
   const window = new BrowserWindow({
-    width: 1380,
-    height: 880,
-    minWidth: 1040,
-    minHeight: 680,
+    width: saved?.width ?? 1280,
+    height: saved?.height ?? 840,
+    ...(saved?.x !== undefined && saved?.y !== undefined ? { x: saved.x, y: saved.y } : {}),
+    minWidth: 940,
+    minHeight: 620,
     show: false,
     title: 'Relay',
-    backgroundColor: '#F4F4F2',
-    titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : 'default',
-    ...(isMac ? { trafficLightPosition: { x: 16, y: 15 } } : {}),
-    ...(isWindows
-      ? { titleBarOverlay: { color: '#161616', symbolColor: '#F4F4F2', height: 44 } }
-      : {}),
+    backgroundColor: '#f2f3f6',
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 18, y: 18 } }
+      : { frame: false }),
     webPreferences: {
       preload: join(here, '../preload/index.mjs'),
       contextIsolation: true,
@@ -30,7 +31,31 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  window.once('ready-to-show', () => window.show())
+  if (saved?.maximized) window.maximize()
+
+  const sendMaximized = (): void => {
+    if (window.isDestroyed()) return
+    window.webContents.send(IPC_CHANNELS.windowMaximized, window.isMaximized())
+  }
+  window.on('maximize', sendMaximized)
+  window.on('unmaximize', sendMaximized)
+
+  const saveBounds = (): void => {
+    const bounds = window.getNormalBounds()
+    config.saveWindowState({
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      maximized: window.isMaximized()
+    })
+  }
+  window.on('close', saveBounds)
+
+  window.once('ready-to-show', () => {
+    window.show()
+    sendMaximized()
+  })
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
