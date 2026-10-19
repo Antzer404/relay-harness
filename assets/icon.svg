@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Relay ｜ 接力 — placeholder app icon.
+       Industrial paper/ink style: ink field, one acid-yellow geometric R,
+       bottom-right cut corner (the endfield "pressable" shape). -->
+  <polygon points="0,0 1024,0 1024,834 834,1024 0,1024" fill="#161616"/>
+  <g fill="#FFFA00">
+    <!-- stem -->
+    <rect x="320" y="250" width="120" height="524"/>
+    <!-- bowl: top bar, right column, bottom bar -->
+    <rect x="440" y="250" width="240" height="120"/>
+    <rect x="560" y="250" width="120" height="310"/>
+    <rect x="440" y="440" width="240" height="120"/>
+    <!-- leg -->
+    <polygon points="480,560 600,560 690,774 570,774"/>
+  </g>
+</svg>
