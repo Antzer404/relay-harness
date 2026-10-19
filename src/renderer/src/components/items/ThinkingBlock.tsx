@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ThinkingItem } from '../../store/useRelayStore'
 import { duration } from '../../lib/format'
+import { getItemOpen, setItemOpen } from '../../lib/item-open-state'
 import { IconChevron } from '../icons'
 
 export function ThinkingBlock({ item }: { item: ThinkingItem }): React.JSX.Element | null {
-  const [open, setOpen] = useState(!item.done)
-  const touched = useRef(false)
+  // Open while streaming, collapsed once done — unless the user toggled it.
+  // The toggle lives outside the component so virtual scrolling cannot lose it.
+  const [open, setOpen] = useState(() => getItemOpen(item.id) ?? !item.done)
 
   useEffect(() => {
-    if (!touched.current) setOpen(!item.done)
-  }, [item.done])
+    if (getItemOpen(item.id) === undefined) setOpen(!item.done)
+  }, [item.id, item.done])
 
   if (item.text.trim().length === 0) return null
 
@@ -20,8 +22,11 @@ export function ThinkingBlock({ item }: { item: ThinkingItem }): React.JSX.Eleme
         className="rly-thinking-head"
         aria-expanded={open}
         onClick={() => {
-          touched.current = true
-          setOpen((value) => !value)
+          setOpen((value) => {
+            const next = !value
+            setItemOpen(item.id, next)
+            return next
+          })
         }}
       >
         <span className={`rly-thinking-dot${item.done ? '' : ' is-live'}`} aria-hidden="true" />

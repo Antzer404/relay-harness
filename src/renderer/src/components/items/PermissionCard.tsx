@@ -1,10 +1,11 @@
-import { useState } from 'react'
 import { useRelayStore, type PermissionItem } from '../../store/useRelayStore'
 import { prettyJson } from '../../lib/format'
+import { permissionParamsKey } from '../../lib/item-open-state'
+import { useItemOpen } from '../../lib/use-item-open'
 
 export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.Element {
   const respond = useRelayStore((state) => state.respondPermission)
-  const [showParams, setShowParams] = useState(false)
+  const [showParams, toggleParams] = useItemOpen(permissionParamsKey(item.id), false)
 
   const canAlways = item.suggestions.length > 0 && item.status === 'pending'
 
@@ -41,7 +42,7 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
           <button
             type="button"
             className="rly-permission-params-toggle"
-            onClick={() => setShowParams((value) => !value)}
+            onClick={toggleParams}
           >
             {showParams ? '收起参数' : '查看参数'}
           </button>

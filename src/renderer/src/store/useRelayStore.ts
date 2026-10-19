@@ -2,11 +2,9 @@ import { create } from 'zustand'
 import type {
   BootstrapState,
   EffortLevel,
-  FileDiff,
   HarnessEvent,
   IpcResult,
   PermissionDecisionKind,
-  PermissionSuggestionView,
   RelayEvent,
   RelaySettings,
   SessionPhase,
@@ -16,81 +14,27 @@ import type {
   VisiblePermissionMode,
   WorkspaceConfigValues
 } from '@shared/events'
+import type {
+  ErrorItem,
+  NoticeItem,
+  PermissionItem,
+  TextItem,
+  ThinkingItem,
+  TimelineItem,
+  ToolItem,
+  UserItem
+} from '@shared/timeline'
 
-export interface UserItem {
-  kind: 'user'
-  id: string
-  text: string
-  at: number
+export type {
+  ErrorItem,
+  NoticeItem,
+  PermissionItem,
+  TextItem,
+  ThinkingItem,
+  TimelineItem,
+  ToolItem,
+  UserItem
 }
-
-export interface TextItem {
-  kind: 'text'
-  id: string
-  text: string
-  done: boolean
-}
-
-export interface ThinkingItem {
-  kind: 'thinking'
-  id: string
-  text: string
-  done: boolean
-  startedAt: number
-  durationMs?: number | null
-}
-
-export interface ToolItem {
-  kind: 'tool'
-  id: string
-  toolUseId: string
-  name: string
-  input: unknown
-  output?: string
-  isError?: boolean
-  diff?: FileDiff
-  startedAt: number
-  durationMs?: number | null
-  status: 'running' | 'done' | 'error'
-}
-
-export interface PermissionItem {
-  kind: 'permission'
-  id: string
-  requestId: string
-  toolName: string
-  input: unknown
-  suggestions: PermissionSuggestionView[]
-  decisionReason?: string
-  title?: string
-  blockedPath?: string
-  status: 'pending' | 'allowed' | 'denied'
-  at: number
-}
-
-export interface ErrorItem {
-  kind: 'error'
-  id: string
-  message: string
-  retryable: boolean
-  at: number
-}
-
-export interface NoticeItem {
-  kind: 'notice'
-  id: string
-  text: string
-  at: number
-}
-
-export type TimelineItem =
-  | UserItem
-  | TextItem
-  | ThinkingItem
-  | ToolItem
-  | PermissionItem
-  | ErrorItem
-  | NoticeItem
 
 export type RightDrawer = 'settings' | 'trace' | null
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useRelayStore, type TimelineItem } from '../store/useRelayStore'
+import { useVirtualTimeline } from '../hooks/useVirtualTimeline'
 import { UserRow } from './items/UserRow'
 import { AssistantText } from './items/AssistantText'
 import { ThinkingBlock } from './items/ThinkingBlock'
@@ -12,19 +13,19 @@ import { IconSpark } from './icons'
 function renderItem(item: TimelineItem): React.JSX.Element | null {
   switch (item.kind) {
     case 'user':
-      return <UserRow key={item.id} item={item} />
+      return <UserRow item={item} />
     case 'text':
-      return <AssistantText key={item.id} item={item} />
+      return <AssistantText item={item} />
     case 'thinking':
-      return <ThinkingBlock key={item.id} item={item} />
+      return <ThinkingBlock item={item} />
     case 'tool':
-      return <ToolCard key={item.id} item={item} />
+      return <ToolCard item={item} />
     case 'permission':
-      return <PermissionCard key={item.id} item={item} />
+      return <PermissionCard item={item} />
     case 'error':
-      return <ErrorBanner key={item.id} item={item} />
+      return <ErrorBanner item={item} />
     case 'notice':
-      return <NoticeRow key={item.id} item={item} />
+      return <NoticeRow item={item} />
   }
 }
 
@@ -73,36 +74,57 @@ function Welcome(): React.JSX.Element {
 export function Timeline(): React.JSX.Element {
   const items = useRelayStore((state) => state.items)
   const phase = useRelayStore((state) => state.phase)
+  const activeId = useRelayStore((state) => state.activeId)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const stick = useRef(true)
 
+  const { layout, start, end, detached, registerRow, onScroll, scrollToBottom } =
+    useVirtualTimeline({ items, scrollRef, resetKey: activeId })
+
+  // A permission request blocks the turn; pull the view back to the tail so
+  // the pending card cannot be missed while the user is reading history.
+  const pendingPermission = items.some(
+    (item) => item.kind === 'permission' && item.status === 'pending'
+  )
   useEffect(() => {
-    const node = scrollRef.current
-    if (!node || !stick.current) return
-    node.scrollTop = node.scrollHeight
-  }, [items, phase])
+    if (pendingPermission) scrollToBottom()
+  }, [pendingPermission, scrollToBottom])
 
   return (
-    <section
-      className="rly-timeline"
-      ref={scrollRef}
-      onScroll={(event) => {
-        const node = event.currentTarget
-        stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 140
-      }}
-    >
-      {items.length === 0 ? (
-        <Welcome />
-      ) : (
-        <div className="rly-items">{items.map(renderItem)}</div>
-      )}
-      {phase === 'busy' || phase === 'starting' ? (
-        <div className="rly-running" aria-label="模型正在工作">
-          <span className="rly-running-dot" />
-          <span className="rly-running-dot" />
-          <span className="rly-running-dot" />
-        </div>
+    <div className="rly-timeline-wrap">
+      <section className="rly-timeline" ref={scrollRef} onScroll={onScroll}>
+        {items.length === 0 ? (
+          <Welcome />
+        ) : (
+          <div className="rly-vlist" style={{ height: layout.total }}>
+            {items.slice(start, end).map((item, offset) => {
+              const index = start + offset
+              return (
+                <div
+                  key={item.id}
+                  className="rly-vrow"
+                  data-item-id={item.id}
+                  ref={registerRow(item.id)}
+                  style={{ transform: `translateY(${layout.offsets[index] ?? 0}px)` }}
+                >
+                  {renderItem(item)}
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {phase === 'busy' || phase === 'starting' ? (
+          <div className="rly-running" aria-label="模型正在工作">
+            <span className="rly-running-dot" />
+            <span className="rly-running-dot" />
+            <span className="rly-running-dot" />
+          </div>
+        ) : null}
+      </section>
+      {detached && items.length > 0 ? (
+        <button type="button" className="rly-jump" onClick={scrollToBottom}>
+          回到最新
+        </button>
       ) : null}
-    </section>
+    </div>
   )
 }

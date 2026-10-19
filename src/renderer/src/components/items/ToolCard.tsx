@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { duration, prettyJson, toolSummary } from '../../lib/format'
+import { useItemOpen } from '../../lib/use-item-open'
 import type { ToolItem } from '../../store/useRelayStore'
 import { IconChevron } from '../icons'
 import { DiffView } from './DiffView'
@@ -23,7 +23,9 @@ const TOOL_GLYPH: Record<string, string> = {
 }
 
 export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
+  // Kept outside the component so scrolling the card out of the virtual
+  // window does not collapse it.
+  const [open, toggleOpen] = useItemOpen(item.id, false)
   const summary = toolSummary(item.name, item.input)
   const glyph = TOOL_GLYPH[item.name] ?? item.name.slice(0, 1).toUpperCase()
 
@@ -33,7 +35,7 @@ export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
         type="button"
         className="rly-tool-row"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggleOpen}
       >
         <span className="rly-tool-glyph" aria-hidden="true">
           {glyph}

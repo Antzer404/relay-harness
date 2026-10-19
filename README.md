@@ -37,6 +37,7 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 - DeepSeek Anthropic 兼容端点：`ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`，鉴权走 `ANTHROPIC_AUTH_TOKEN`。
 - 密钥由主进程 `safeStorage` 加密保存；系统安全存储不可用时只保存在内存，不落明文。
 - 极简控制台：顶栏 + 会话栏 + 时间线，无右侧检查器；流式文本、思维链折叠（显示思考耗时）、紧凑工具卡、时间线内联权限卡；浅色 / 深色 / 跟随系统；不在主界面展示 token 与成本。
+- 时间线虚拟滚动：只挂载可视窗口内的条目（约 20 个 DOM 行，与会话长度无关）；行高由 ResizeObserver 实测并缓存，滚动时以首行锚定避免跳动；贴底跟随流式输出，离开底部时出现「回到最新」。
 - 文件改动卡：Edit / MultiEdit / Write 成功后显示行级 diff（行号、上下文、+N/−M），diff 随事件落盘，历史会话同样可见；红绿只用于 diff 内容。
 - 配置分级：应用默认保存在 userData；`<工作区>/.relay/settings.json` 可覆盖模型、思考强度、权限模式与追加系统提示；`.relay/settings.local.json` 保存「始终允许」权限规则。
 - 会话持久化：持久事件按轮写入 userData/sessions，重启后可浏览、重命名、删除，并通过 CLI transcript 恢复上下文。
