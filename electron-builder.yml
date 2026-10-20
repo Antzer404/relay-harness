@@ -66,8 +66,14 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
-  # Signing + notarization are performed by the release pipeline with a real
-  # Developer ID certificate. Local unsigned builds still run for smoke tests.
+  # No Developer ID certificate yet, so sign ad-hoc ("-"): Apple Silicon refuses
+  # to launch a completely unsigned bundle, while an ad-hoc signature runs after
+  # Gatekeeper is bypassed once (right-click → Open or `xattr -cr`). The
+  # entitlements already disable library validation, which hardened runtime
+  # requires for an ad-hoc signature to load Electron's framework.
+  # Replace this with the certificate name (and enable notarization) once a
+  # Developer ID is available.
+  identity: '-'
   notarize: false
 
 dmg:
