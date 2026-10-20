@@ -635,8 +635,16 @@ function SettingsBody(): React.JSX.Element | null {
                       <div>
                         <span>
                           {skill.title ?? skill.name}
-                          <em className="rly-skill-scope">
-                            {skill.scope === 'global' ? '全局' : '工作区'}
+                          <em
+                            className={`rly-skill-scope${
+                              skill.builtin ? ' is-builtin' : ''
+                            }`}
+                          >
+                            {skill.builtin
+                              ? '内置'
+                              : skill.scope === 'global'
+                                ? '全局'
+                                : '工作区'}
                           </em>
                         </span>
                         <p title={skill.description || undefined}>
@@ -671,6 +679,7 @@ function SettingsBody(): React.JSX.Element | null {
               </div>
               <p className="rly-hint">
                 开关更改在下次启动会话时生效；技能按文件夹名识别，同名技能一起启停。
+                内置技能随应用安装到全局目录，未修改过的副本会随应用更新自动升级；不想要时直接关掉开关即可。
               </p>
             </section>
           ) : null}

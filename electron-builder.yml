@@ -27,6 +27,12 @@ asarUnpack:
   # The SDK JS itself stays inside app.asar.
   - '**/node_modules/@anthropic-ai/claude-agent-sdk-*/**'
 
+# Skills bundled with the app; installed into CLAUDE_CONFIG_DIR/skills on
+# first launch. Kept outside asar so the CLI and users can read them directly.
+extraResources:
+  - from: resources/builtin-skills
+    to: builtin-skills
+
 npmRebuild: false
 
 win:

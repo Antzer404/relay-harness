@@ -2019,6 +2019,12 @@ select.rly-input {
   vertical-align: 1px;
 }
 
+.rly-skill-scope.is-builtin {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .rly-allowed-tools {
   padding: 10px 12px;
   border-radius: 10px;

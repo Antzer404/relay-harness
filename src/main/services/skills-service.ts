@@ -1,6 +1,7 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { SkillInfo, SkillListInfo, SkillScope } from '@shared/events'
+import { BUILTIN_MARKER } from './builtin-skills'
 
 /**
  * Skills are plain folders with a SKILL.md at their root. Relay reads them
@@ -153,6 +154,7 @@ export function scanSkillRoot(root: string, scope: SkillScope): SkillInfo[] {
       title: parsed.name && parsed.name !== entry.name ? parsed.name : null,
       description: parsed.description ?? '',
       scope,
+      builtin: scope === 'global' && existsSync(join(root, entry.name, BUILTIN_MARKER)),
       path: file,
       enabled: true
     })

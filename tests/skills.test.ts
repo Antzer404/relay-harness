@@ -99,6 +99,17 @@ describe('scanSkillRoot', () => {
   it('returns an empty list for a missing directory', () => {
     expect(scanSkillRoot(join(makeDir(), 'nope'), 'global')).toEqual([])
   })
+
+  it('marks skills carrying the install marker as built-in', () => {
+    const root = makeDir()
+    writeSkill(root, 'code-review', '---\ndescription: Bundled review\n---')
+    writeFileSync(join(root, 'code-review', '.relay-builtin'), '{}', 'utf8')
+    writeSkill(root, 'my-skill', '---\ndescription: Mine\n---')
+
+    const skills = scanSkillRoot(root, 'global')
+    expect(skills.find((skill) => skill.name === 'code-review')?.builtin).toBe(true)
+    expect(skills.find((skill) => skill.name === 'my-skill')?.builtin).toBe(false)
+  })
 })
 
 describe('collectSkillList', () => {

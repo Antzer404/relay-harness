@@ -236,6 +236,8 @@ export interface SkillInfo {
   title: string | null
   description: string
   scope: SkillScope
+  /** Installed from the app's bundled skills and safe to upgrade. */
+  builtin: boolean
   /** Absolute path of the SKILL.md file. */
   path: string
   /** Derived from the app-wide disabled list. */

@@ -1,5 +1,11 @@
 import { app } from 'electron'
+import { join } from 'node:path'
 import { ConfigService } from './services/config-service'
+import {
+  BUILTIN_MANIFEST,
+  builtinSkillsSourceDir,
+  installBuiltinSkills
+} from './services/builtin-skills'
 import { HostRegistry } from './hosts'
 import { registerIpc } from './ipc'
 import { gpuCompositingEnabled, logGpuStatus } from './perf'
@@ -54,6 +60,25 @@ if (!gotLock) {
 
     const userDataDir = app.getPath('userData')
     const config = new ConfigService(userDataDir)
+    // Bundled skills are copied into the user-level skills folder before any
+    // window opens, so the settings list and new sessions see them.
+    const builtins = installBuiltinSkills({
+      sourceDir: builtinSkillsSourceDir({
+        isPackaged: app.isPackaged,
+        appPath: app.getAppPath(),
+        resourcesPath: process.resourcesPath
+      }),
+      targetDir: config.getSkillsDir(),
+      manifestPath: join(userDataDir, BUILTIN_MANIFEST),
+      log: (message) => console.warn(`[relay] ${message}`)
+    })
+    if (builtins.installed.length > 0 || builtins.updated.length > 0) {
+      console.log(
+        `[relay] builtin skills installed=${builtins.installed.join(',') || '-'} updated=${
+          builtins.updated.join(',') || '-'
+        }`
+      )
+    }
     registry = new HostRegistry({
       isPackaged: app.isPackaged,
       userDataDir,
