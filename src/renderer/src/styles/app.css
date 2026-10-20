@@ -1685,6 +1685,7 @@ textarea {
 /* -------------------------------------------------------------- settings */
 
 .rly-settings {
+  position: relative;
   display: flex;
   width: min(880px, 92vw);
   height: min(620px, 86vh);
@@ -1747,6 +1748,12 @@ textarea {
   position: absolute;
   top: 16px;
   right: 16px;
+  /* The button sits above scrolling content now; keep text from showing through. */
+  background: var(--surface-dialog);
+}
+
+.rly-settings-close:hover {
+  background: var(--surface-strong);
 }
 
 .rly-form {

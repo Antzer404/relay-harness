@@ -261,15 +261,6 @@ function SettingsBody(): React.JSX.Element | null {
         </aside>
 
         <div className="rly-settings-content">
-          <button
-            type="button"
-            className="rly-icon-btn rly-settings-close"
-            aria-label="关闭设置"
-            onClick={close}
-          >
-            <IconClose />
-          </button>
-
           {tab === 'general' ? (
             <section className="rly-form">
               <h2>通用</h2>
@@ -764,6 +755,16 @@ function SettingsBody(): React.JSX.Element | null {
             <p className={`rly-form-status is-${status.kind}`}>{status.message}</p>
           ) : null}
         </div>
+
+        {/* Outside the scrolling content so the close button never scrolls away. */}
+        <button
+          type="button"
+          className="rly-icon-btn rly-settings-close"
+          aria-label="关闭设置"
+          onClick={close}
+        >
+          <IconClose />
+        </button>
       </div>
     </div>
   )
