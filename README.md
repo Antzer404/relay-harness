@@ -1,152 +1,113 @@
-# Relay ｜ 接力
+<p align="center">
+  <img src="assets/logo.png" width="96" alt="Relay logo" />
+</p>
 
-桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
+<h1 align="center">Relay ｜ 接力</h1>
 
-> 状态：**M3 发布准备——macOS Apple Silicon + Windows x64 预览版（v0.1.1）**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆、技能管理（含 5 个内置技能）与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
+<p align="center">把 DeepSeek 装进一张真正能干活的工作台。</p>
 
-## 下载安装（macOS Apple Silicon / Windows x64）
+<p align="center">
+  <a href="https://github.com/Antzer404/relay-harness/releases/latest"><img src="https://img.shields.io/github/v/release/Antzer404/relay-harness?label=release" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-blue" alt="Platform" />
+  <img src="https://img.shields.io/badge/runtime-DeepSeek-4B6BFB" alt="DeepSeek" />
+</p>
 
-到 [Releases](https://github.com/Antzer404/relay-harness/releases) 下载对应安装包，不需要 Node.js 或任何开发环境：
+Relay 是一个本地运行的桌面 Agent 工作台。它用 Claude Agent SDK 驱动工具调用，接入 DeepSeek 的 Anthropic 兼容端点，把思考过程、文件改动、命令执行和权限决定摊开在一条时间线上。长时间的活不会因为上下文耗尽而断掉：你可以把工作交接给下一个会话，Relay 也会在后台把项目知识和你的习惯沉淀成长期记忆。
 
-- macOS：下载 `Relay-<版本>-mac-arm64.dmg`，拖进「应用程序」。要求 macOS 13 Ventura 及以上、Apple Silicon（M 系列）。当前版本使用 ad-hoc 签名、尚未公证，首次打开需放行一次：对 Relay 右键 → 打开；若提示「已损坏」，在终端执行 `xattr -cr /Applications/Relay.app` 后重开。
-- Windows：下载 `Relay-<版本>-win-x64.exe`，要求 Windows 10 / 11 x64。安装包尚未签名，首次运行出现 SmartScreen 时点「更多信息」→「仍要运行」。
+[下载最新版](https://github.com/Antzer404/relay-harness/releases/latest) · [发布说明](docs/release-notes.md) · [问题反馈](https://github.com/Antzer404/relay-harness/issues)
 
-首次启动点右上角齿轮 → API Key，填入 DeepSeek 密钥，然后新建会话。完整说明见[发布说明](docs/release-notes.md)。
+---
 
-## 从源码运行（开发）
+## 看得见的推理与行动
 
-要求：Node.js ≥ 22.12，Windows 10/11 或 macOS。
+- **思维链实时可见**。模型边想边显示，完成后折叠并标注思考耗时，随时可以展开回看。
+- **工具调用逐条成卡**。参数、结果、耗时与错误都在卡里；Edit / MultiEdit / Write 成功后直接给出带行号的 diff 和 `+N / −M`，历史会话里也一样能看。
+- **过程自动收束**。连续的思考与工具调用合并成一条「过程」行，运行中展开、完成后收起。再长的会话，每条用户指令仍然一眼可找。
+- **权限不打断阅读**。审批以时间线内联卡片出现：拒绝、本次允许、总是允许。「总是允许」按工具整体生效，之后可在设置里逐项移除。
+- **运行中也能说话**。Enter 把消息插入当前回合，正在跑的工具结束后模型就能读到；Ctrl+Enter 立即打断并回答；Esc 停止。失败回合可以一键重试。
+- 浅色 / 深色 / 跟随系统，克制的毛玻璃与短促动效；显卡不可用时自动降级为低特效模式，优先保证滚动流畅。
 
-中国网络环境下建议先切镜像（Electron 本体在安装时下载，镜像须在 `npm ci` 之前设置）：
+## 长任务不断线
 
-```bash
-npm config set registry https://registry.npmmirror.com
-# Windows PowerShell
-$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
-$env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
-```
+- **交接链**。上下文填充率达到阈值时，输入框上方会出现提示。一键把当前会话压缩成结构化交接文档——目标、已完成、关键决策、涉及文件、待办、未解决——可以编辑、重新生成，确认后作为新会话的起点。会话列表会标记「接力」来源，交接可以一段接一段延长。
+- **双轨长期记忆**。每个回合结束后，Relay 在后台把增量对话蒸馏成「项目记忆 + 用户画像」，新会话启动时按约 2000 tokens 的预算注入。工作区里同时生成 `.relay/memory.md` 只读镜像，记忆也可以直接改 JSON。
+- **透明恢复**。会话与事件本地持久化，重启后接着聊；运行时崩溃、网络中断或更换 API Key 后，下一条消息会自动重建并恢复上下文。
+- **长会话不卡**。时间线虚拟滚动，只渲染可视区域的条目，滚回历史时展开状态也不会丢。
 
-```bash
-npm ci        # postinstall 会自动下载 Electron 本体（约 200 MB）
-npm run dev
-```
+## 工作目录就是工作区
 
-Electron 44 起核心包不再带 postinstall，二进制改为首次加载时懒下载；electron-vite 6 不会触发懒下载，因此项目根目录用 `postinstall: install-electron` 显式补齐。若下载中断，重跑 `npm run postinstall` 即可，不需要重新 `npm ci`。
+- 每个会话绑定一个工作目录。`<目录>/.relay/settings.json` 可以覆盖模型、思考强度、权限模式和追加系统提示；`.relay/settings.local.json` 保存工具授权。
+- 应用默认、工作区覆盖、会话内即时切换三级配置，设置页会标明当前生效来源。
+- 输入框左下的权限胶囊可在「每次询问 / 仅规划 / 自动接受编辑」之间切换，运行中立即生效，并在时间线留下记录。
 
-`git push`、`npm ci` 或 Electron 下载缓慢通常是命令行没有走代理（Windows 系统代理不作用于 CLI）。按 [命令行代理配置](docs/proxy-setup.md) 设置一次即可。
+## Project：Leader 带队的多智能体工作区
 
-若 Windows 上 Chromium GPU 进程无法启动（虚拟机、远程桌面或受限显卡驱动），应用会继续以软件合成运行：主进程默认给 Chromium 传 `disable-gpu-process-crash-limit`，避免它在多次 GPU 启动失败后直接退出；启动日志会打印 `[relay] gpu compositing=...`，当合成器不是 `enabled` 时界面自动进入低特效模式（去掉大面积毛玻璃与背景模糊、对话框直接显示），优先保证滚动和动画流畅。仍可设置 `RELAY_DISABLE_GPU=1` 强制关闭硬件加速（会追加 `disable-gpu` / `in-process-gpu` 等开关）。开发模式按 F12 可打开 DevTools。
+- 顶栏 **Project** 为一个目录打开独立窗口。打开过一次后，按钮会直接回到上次的目录，旁边的箭头可以另选文件夹；不同目录的 Project 窗口可以同时存在。
+- Leader 先给出分步计划——步骤、负责人、验收标准——再按任务通过原生子代理自行组建团队，不预设固定阵容。需要可复用专员时，可在 `.relay/agents.json` 中声明。
+- 侧栏团队面板显示实际成员、状态、任务摘要与逐成员 token；频道记录协作消息，成员抽屉保留完整过程。
+- Worker 的思考与工具调用不会混入主时间线；权限审批会标明来自哪个 agent，worker 继承当前会话的权限模式。
+- 主窗口与 Project 窗口的会话互相隔离，记忆与交接记录按目录共享。
 
-首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型与思考强度在设置里调整；权限模式可直接用输入框左下的胶囊按钮即时切换（仅作用于当前会话），也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
+## 技能：把重复工作变成一次点击
 
-需要团队协作时，点顶栏的「Project」并选择工作文件夹：Relay 会为新目录打开一个独立窗口，以 Project 模式运行。打开过一次后，Project 按钮会直接重开上次的目录，旁边的箭头可以切换或另选文件夹。Leader 负责按任务自行组建团队并通过子代理派发，成员不是固定阵容；如需可复用专员，可在 `.relay/agents.json` 中声明。主窗口与 Project 窗口的会话互相隔离，记忆与交接记录按目录共享。
+- 设置 → 技能会扫描全局与工作区两个目录，列出名称、描述与来源，逐项启停，下次启动会话时生效。
+- 内置 5 个常用技能：`code-review`、`test-writer`、`explain-code`、`commit-message`、`repo-tour`。首次启动自动安装；未修改过的内置技能随版本升级，自己改过或同名的自建技能不会被覆盖。
+- 采用标准的 `SKILL.md` 目录结构，可以直接使用 Claude Code 生态里的技能。
 
-## 当前能力
+## 本地优先
 
-- electron-vite 单包分层：`src/main`、`src/preload`、`src/renderer`、`src/shared`。
-- `@anthropic-ai/claude-agent-sdk@0.3.303` 精确锁定；SDK 平台包自带 CLI，无需用户安装。
-- DeepSeek Anthropic 兼容端点：`ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`，鉴权走 `ANTHROPIC_AUTH_TOKEN`。
-- 密钥由主进程 `safeStorage` 加密保存；系统安全存储不可用时只保存在内存，不落明文。
-- 极简控制台：顶栏 + 会话栏 + 时间线，无右侧检查器；流式文本、思维链折叠（显示思考耗时）、紧凑工具卡、时间线内联权限卡；浅色 / 深色 / 跟随系统；不在主界面展示 token 与成本。连续的思考与工具调用自动合并为可展开的「过程」行，运行中展开、完成后收起，长会话里每条用户指令都能一眼找到。
-- 输入框：忙碌时 Enter 把消息插入当前回合（正在跑的工具结束后模型就会读到），Ctrl+Enter 立即打断当前回合并发送，Esc 停止；空闲时 Enter 直接发送，Shift+Enter 换行。
-- 时间线虚拟滚动：只挂载可视窗口内的条目（约 20 个 DOM 行，与会话长度无关）；行高由 ResizeObserver 实测并缓存，滚动时以首行锚定避免跳动；贴底跟随流式输出，离开底部时出现「回到最新」。
-- 文件改动卡：Edit / MultiEdit / Write 成功后显示行级 diff（行号、上下文、+N/−M），diff 随事件落盘，历史会话同样可见；红绿只用于 diff 内容。
-- 配置分级：应用默认保存在 userData；`<工作区>/.relay/settings.json` 可覆盖模型、思考强度、权限模式与追加系统提示；`.relay/settings.local.json` 保存「始终允许」的工具授权（按工具整体生效，例如 `WebFetch` 覆盖所有网站，可在设置的工作区页移除）。
-- 会话持久化：持久事件按轮写入 userData/sessions，重启后可浏览、重命名、删除，并通过 CLI transcript 恢复上下文。
-- 权限默认 `default`；`canUseTool` 三态（拒绝 / 本次允许 / 总是允许），内联卡片不阻塞界面；「总是允许」按工具整体授权（WebFetch 覆盖所有网站、Write 覆盖所有文件），写入工作区配置后新会话直接生效，也可在设置的已允许工具中移除；窗口关闭时自动拒绝挂起请求。
-- 错误与恢复：鉴权失败 / 余额不足 / 限流 / 服务繁忙 / 网络与代理错误分别给出可操作的提示；凭证类错误直接提供「打开设置」，修改 Key 后会停掉旧 CLI 进程，下次发送自动用新 Key 恢复。CLI 进程崩溃后会话记录保留，下一条消息会透明地重建运行时（`resume`）；会话终止时未决权限卡自动置为拒绝。断网时输入框上方显示提示，恢复后可直接重试。
-- 权限模式即时切换：输入框左下的胶囊按钮在 `每次询问 / 仅规划 / 自动接受编辑` 之间切换，运行中的会话通过 SDK `setPermissionMode` 立刻生效并留下时间线记录；没有运行中会话时则保存为应用默认。plan 模式批准时（ExitPlanMode）按建议提供「自动接受编辑 / 逐次确认」两个选项。
-- 上下文填充率：开发者模式的事件轨迹抽屉顶部显示最近一轮的 context 占用（tokens、窗口、百分比、输入输出、缓存读写与估算成本）。
-- 跨会话交接：填充率达到阈值（默认 70%，低于 CLI 自动压缩的 75%）时输入框上方出现提示；点「交接」后用当前会话的持久事件生成结构化交接文档（目标 / 已完成 / 关键决策 / 涉及文件 / 待办 / 未解决），可编辑、重生成，确认后新建会话并把文档注入其系统提示；会话列表用「接力」标记来源，交接链可连续延长。生成走独立的模型调用，不占用当前会话上下文。
-- 双轨长期记忆：每个回合结束后 2 分钟去抖，用当前会话模型把增量对话整理成「项目记忆 + 用户画像」，以 `add / update / delete` 增量写入 `userData/memory`（JSON，按会话游标只处理未整理的事件）；工作区同时生成只读镜像 `.relay/memory.md`。新会话启动时按约 2000 tokens 预算注入系统提示，整理结果在时间线留一条通知。设置 → 通用可查看记忆目录与条数；直接编辑 JSON 即可修改，`enabled: false` 可停用。
-- 技能管理：设置 → 技能会扫描全局（`CLAUDE_CONFIG_DIR/skills`，即应用数据下的 `claude-config/skills`）与工作区（`.claude/skills`）两个目录，列出技能的文件夹名、描述与来源，并可逐个启停；开关保存为应用级设置，通过 CLI 的 `skillOverrides` 在下次启动会话时生效。运行时会加载 `user` 设置源，因此放在全局目录里的技能同样会被发现。应用内置 5 个常用技能（`code-review` / `test-writer` / `explain-code` / `commit-message` / `repo-tour`），首次启动时安装到全局技能目录并标记为「内置」；未修改过的副本会随应用更新自动升级，用户编辑过或同名的自建技能不会被覆盖。
-- Project 模式（多智能体）：主窗口顶栏点「Project」选择工作文件夹，会打开一个独立窗口并绑定该目录。Leader 仍是主会话，通过 SDK 原生子代理按任务自行组建团队（不预设固定阵容，可用 `.relay/agents.json` 声明可复用专员）；侧栏底部「团队」区可切换成员与频道，查看任务单、进度摘要、逐成员 token 与完整过程；worker 的思维链与工具调用不会混入主时间线，权限审批卡会标注请求来自哪个 agent。worker 继承会话权限模式。
-- 视觉与动效：消息气泡、工具 / 思维 / 权限卡、错误条与团队面板使用克制的毛玻璃、内高光与统一缓动；展开工具详情、切换设置页、频道新消息与成员抽屉有短促的淡入 / 上浮动画。软件渲染模式下自动去掉大面积模糊与窗口级入场动画，保留小范围动效。
-- 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
-- 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
-- 打包：Windows x64 NSIS、macOS arm64 dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
+- 自带 DeepSeek API Key 即可使用。密钥通过系统安全存储加密保存；系统安全存储不可用时只留在内存，不落明文。
+- 没有账号、没有云端同步、没有使用数据上报。应用只访问你配置的 DeepSeek 端点。
+- 会话、交接文档、记忆与设置全部保存在本机应用数据目录，工作区配置随项目走。
 
-尚未实现：Developer ID 签名与公证、Windows 安装包发布与 Defender 误报处理、E2E 冒烟、Cowork、自动更新。
+## 快速上手
 
-## 目录
+Relay 只通过 GitHub Releases 分发安装包，不需要安装 Node.js 或任何开发环境。
 
-```text
-src/
-  shared/        # 事件、IPC、设置类型与 zod schema（无 Electron/Node 依赖）
-  main/
-    runtime/     # RuntimeAdapter、ClaudeAgentRuntime、事件归一化、原生 CLI 路径
-    services/    # 配置/密钥（safeStorage）、会话生命周期、交接文档、双轨记忆、技能扫描、项目阵容
-    hosts.ts     # 主窗口 / Project 窗口的会话宿主与共享存储
-    ipc.ts       # 类型化 IPC 与入参校验（按窗口路由）
-    window.ts
-    index.ts
-  preload/       # contextBridge 暴露最小 window.relay
-  renderer/      # React 19 + Zustand + 毛玻璃 CSS（时间线 / 设置 / 事件抽屉）
-tests/           # 归一化单测、路径单测、SDK + mock 端点闭环
-scripts/         # 打包产物校验
-resources/       # 随应用分发的内置技能（builtin-skills/<name>/SKILL.md）
-docs/            # v1 方案、M0 验证报告、截图
-```
+到 [Releases](https://github.com/Antzer404/relay-harness/releases/latest) 下载对应版本：
 
-## 脚本
+| 平台 | 文件 | 要求 |
+| --- | --- | --- |
+| Windows | `Relay-1.0.0-win-x64.exe` | Windows 10 / 11，x64 |
+| macOS | `Relay-1.0.0-mac-arm64.dmg` | macOS 13 Ventura 及以上，Apple Silicon（M 系列） |
 
-| 命令 | 作用 |
-| --- | --- |
-| `npm run dev` | electron-vite 开发模式 |
-| `npm run typecheck` | 主进程 + 渲染层两套 TS 检查 |
-| `npm test` | Vitest：归一化、路径、SDK mock 闭环 |
-| `npm run smoke` | 只跑 SDK 闭环（本地 mock，不需要真实 key） |
-| `npm run build:app` | 构建 main / preload / renderer |
-| `npm run dist:win` | Windows x64 NSIS 安装包 |
-| `npm run dist:mac` | 当前架构 dmg |
-| `npm run dist:mac:arm64` | Apple Silicon dmg（发布用） |
-| `npm run dist:dir` | 当前平台未打包目录 |
-| `npm run verify:package` | 检查 `app.asar.unpacked` 中的 SDK CLI |
+**Windows**
 
-## 架构要点
+1. 双击安装包。安装包尚未签名，出现 SmartScreen 时点「更多信息」→「仍要运行」。
+2. 选择安装目录（默认当前用户目录，无需管理员权限），完成后从桌面或开始菜单启动。
+3. 点右上角齿轮 → **API Key**，粘贴 DeepSeek 密钥（`sk-...`）并保存。
+4. 左侧点「新会话」，选择工作目录，开始对话。
 
-- **不重建历史**：会话恢复只走 SDK `resume` / CLI transcript，Relay 自己的事件库不参与向模型回传消息，从根上规避 DeepSeek thinking 回传 400。
-- **运行时适配层**：`RuntimeAdapter` + `EventNormalizer` 隔离 SDK 0.x 的破坏性变更；升级 SDK = 产品发版，需跑权限、thinking、resume、usage 回归。
-- **环境合并**：SDK `options.env` 是替换语义，必须合并 `process.env`；同时清除宿主上可能存在的其他 Anthropic 凭证，避免抢走用户 key。
-- **原生二进制**：打包后 CLI 位于 `app.asar.unpacked/node_modules/@anthropic-ai/claude-agent-sdk-<platform>-<arch>/`，主进程显式解析并传入 SDK。
+**macOS**
 
-## 安全约定
+1. 打开 dmg，把 **Relay** 拖进「应用程序」。
+2. 当前版本使用 ad-hoc 签名、尚未公证，首次启动请对 Relay **右键 → 打开**。若提示「已损坏」，在终端执行一次 `xattr -cr /Applications/Relay.app` 后重新打开。
+3. 在设置 → **API Key** 填入 DeepSeek 密钥，然后新建会话。
 
-- 仓库不包含任何 API Key 或凭据。密钥只存在于 `safeStorage` 加密文件或当前进程内存。
-- `contextIsolation: true`、`nodeIntegration: false`，渲染层不接触 Node；preload 只暴露白名单方法。
-- IPC 入参使用 zod 校验；生产构建注入 CSP；外部链接交给系统浏览器。
-- 默认权限模式 `default`，不提供“默认全放行”开关。
+首次启动会自动安装 5 个内置技能。模型、思考强度、权限模式都可以在设置里调整；需要团队协作时点顶栏的 **Project**。
+
+## 系统要求
+
+- Windows 10 / 11 x64，或 macOS 13 Ventura 及以上（Apple Silicon）。暂不提供 Intel Mac、Windows arm64 与 32 位 Windows。
+- 自备 DeepSeek API Key，首次对话需要能访问 `api.deepseek.com`。
+
+## 已知限制
+
+- 两个平台的安装包都未签名、未公证：Windows 首次运行有 SmartScreen 提示，macOS 首次打开需要按上面的步骤放行。
+- 没有自动更新，新版本需要下载安装包覆盖安装。
+- 仅接入 DeepSeek；暂无账号体系与云端同步。
+- Windows 版本尚未经过大规模真机兼容性测试，遇到安装或启动问题请附上系统版本与应用日志。
+
+## 技术底座
+
+Electron 44 + React 19 + TypeScript，状态管理使用 Zustand，界面为自行维护的毛玻璃样式。运行时锁定 `@anthropic-ai/claude-agent-sdk@0.3.303`，SDK 自带原生 CLI，用户无需另装 Claude Code；模型通过 DeepSeek 的 Anthropic 兼容端点接入。主进程、预加载与渲染层严格隔离，IPC 入参使用 zod 校验，渲染层不接触 Node。安装包由 electron-builder 产出：Windows NSIS 与 macOS dmg，SDK 原生二进制从 asar 中解包并按路径显式加载。
 
 ## 文档
 
-- [v1 技术方案](docs/v1-tech-proposal.md)
-- [M0 技术验证报告](docs/m0-verification.md)
-- [命令行代理配置](docs/proxy-setup.md)
 - [当前版本发布说明](docs/release-notes.md)
-
-## 打包
-
-在目标系统上构建，npm 会自动安装对应平台的 SDK 原生包：
-
-```bash
-npm ci
-npm run dist:win          # Windows x64（NSIS 安装包）
-npm run dist:mac:arm64    # macOS Apple Silicon dmg
-npm run verify:package    # 检查 app.asar.unpacked 中的 SDK CLI
-```
-
-macOS 目前使用 ad-hoc 签名（`electron-builder.yml` 中 `mac.identity: '-'`）：Apple Silicon 要求至少临时签名才能启动，首次打开需右键 → 打开，或执行 `xattr -cr /Applications/Relay.app`。拿到 Developer ID 证书后，把 `identity` 换成证书名并打开公证即可。Windows 安装包未签名，首次运行会有 SmartScreen 提示。
-
-### 发布流程
-
-Release 由 [.github/workflows/build.yml](.github/workflows/build.yml) 驱动：
-
-1. 修改 `package.json` 版本号与 `docs/release-notes.md`，提交并推送 `main`。
-2. 打 tag 并推送：`git tag v0.1.1 && git push origin v0.1.1`。
-3. CI 并行执行两个平台任务：`macos-14` 构建 arm64 dmg，`windows-latest` 构建 x64 NSIS 安装包；两边都先跑 typecheck、单测与 SDK 冒烟测试，并校验 SDK 原生二进制已解包出 asar。
-4. 构建通过后自动创建**草稿 Release**，附 dmg、exe 与 `SHA256SUMS.txt`；真机安装验收后到 GitHub Releases 页面手动发布。
-
-手动触发（`workflow_dispatch`）只构建并保留产物，不创建 Release（没有 tag）。扩展平台时在 workflow 矩阵中添加对应行，并同步 `release` 步骤的文件匹配。
+- [开发与构建](docs/development.md)
+- [命令行代理配置](docs/proxy-setup.md)
+- [v1 技术方案](docs/v1-tech-proposal.md)
 
 ## 许可
 

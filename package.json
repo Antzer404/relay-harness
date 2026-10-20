@@ -1,6 +1,6 @@
 {
   "name": "relay-harness",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Relay — a desktop agent harness built on the Claude Agent SDK, with DeepSeek as the model provider.",
   "author": "Antzer404",
   "license": "UNLICENSED",
