@@ -2,13 +2,16 @@
 
 桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
 
-> 状态：**M3 发布准备——macOS Apple Silicon 预览版（v0.1.0）**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆、技能管理（含 5 个内置技能）与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
+> 状态：**M3 发布准备——macOS Apple Silicon + Windows x64 预览版（v0.1.1）**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆、技能管理（含 5 个内置技能）与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
 
-## 下载安装（macOS Apple Silicon）
+## 下载安装（macOS Apple Silicon / Windows x64）
 
-到 [Releases](https://github.com/Antzer404/relay-harness/releases) 下载 `Relay-<版本>-mac-arm64.dmg`，拖进「应用程序」即可，不需要 Node.js 或任何开发环境。
+到 [Releases](https://github.com/Antzer404/relay-harness/releases) 下载对应安装包，不需要 Node.js 或任何开发环境：
 
-要求 macOS 13 Ventura 及以上、Apple Silicon（M 系列）。当前版本使用 ad-hoc 签名、尚未公证，首次打开需放行一次：对 Relay 右键 → 打开；若提示「已损坏」，在终端执行 `xattr -cr /Applications/Relay.app` 后重开。首次启动点右上角齿轮 → API Key，填入 DeepSeek 密钥，然后新建会话。完整说明见[发布说明](docs/release-notes.md)。
+- macOS：下载 `Relay-<版本>-mac-arm64.dmg`，拖进「应用程序」。要求 macOS 13 Ventura 及以上、Apple Silicon（M 系列）。当前版本使用 ad-hoc 签名、尚未公证，首次打开需放行一次：对 Relay 右键 → 打开；若提示「已损坏」，在终端执行 `xattr -cr /Applications/Relay.app` 后重开。
+- Windows：下载 `Relay-<版本>-win-x64.exe`，要求 Windows 10 / 11 x64。安装包尚未签名，首次运行出现 SmartScreen 时点「更多信息」→「仍要运行」。
+
+首次启动点右上角齿轮 → API Key，填入 DeepSeek 密钥，然后新建会话。完整说明见[发布说明](docs/release-notes.md)。
 
 ## 从源码运行（开发）
 
@@ -61,7 +64,7 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 - 视觉与动效：消息气泡、工具 / 思维 / 权限卡、错误条与团队面板使用克制的毛玻璃、内高光与统一缓动；展开工具详情、切换设置页、频道新消息与成员抽屉有短促的淡入 / 上浮动画。软件渲染模式下自动去掉大面积模糊与窗口级入场动画，保留小范围动效。
 - 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
 - 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
-- 打包：Windows NSIS/portable、macOS dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
+- 打包：Windows x64 NSIS、macOS arm64 dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
 
 尚未实现：Developer ID 签名与公证、Windows 安装包发布与 Defender 误报处理、E2E 冒烟、Cowork、自动更新。
 
@@ -94,7 +97,7 @@ docs/            # v1 方案、M0 验证报告、截图
 | `npm test` | Vitest：归一化、路径、SDK mock 闭环 |
 | `npm run smoke` | 只跑 SDK 闭环（本地 mock，不需要真实 key） |
 | `npm run build:app` | 构建 main / preload / renderer |
-| `npm run dist:win` | Windows NSIS + portable |
+| `npm run dist:win` | Windows x64 NSIS 安装包 |
 | `npm run dist:mac` | 当前架构 dmg |
 | `npm run dist:mac:arm64` | Apple Silicon dmg（发布用） |
 | `npm run dist:dir` | 当前平台未打包目录 |
@@ -127,21 +130,21 @@ docs/            # v1 方案、M0 验证报告、截图
 
 ```bash
 npm ci
-npm run dist:win          # Windows（NSIS + portable）
+npm run dist:win          # Windows x64（NSIS 安装包）
 npm run dist:mac:arm64    # macOS Apple Silicon dmg
 npm run verify:package    # 检查 app.asar.unpacked 中的 SDK CLI
 ```
 
-macOS 目前使用 ad-hoc 签名（`electron-builder.yml` 中 `mac.identity: '-'`）：Apple Silicon 要求至少临时签名才能启动，首次打开需右键 → 打开，或执行 `xattr -cr /Applications/Relay.app`。拿到 Developer ID 证书后，把 `identity` 换成证书名并打开公证即可。
+macOS 目前使用 ad-hoc 签名（`electron-builder.yml` 中 `mac.identity: '-'`）：Apple Silicon 要求至少临时签名才能启动，首次打开需右键 → 打开，或执行 `xattr -cr /Applications/Relay.app`。拿到 Developer ID 证书后，把 `identity` 换成证书名并打开公证即可。Windows 安装包未签名，首次运行会有 SmartScreen 提示。
 
 ### 发布流程
 
 Release 由 [.github/workflows/build.yml](.github/workflows/build.yml) 驱动：
 
 1. 修改 `package.json` 版本号与 `docs/release-notes.md`，提交并推送 `main`。
-2. 打 tag 并推送：`git tag v0.1.0 && git push origin v0.1.0`。
-3. CI 在 `macos-14`（Apple Silicon）上执行 typecheck、单测与 SDK 冒烟测试，构建 arm64 dmg，并校验 SDK 原生二进制已解包出 asar。
-4. 构建通过后自动创建**草稿 Release**，附 dmg 与 `SHA256SUMS.txt`；真机安装验收后到 GitHub Releases 页面手动发布。
+2. 打 tag 并推送：`git tag v0.1.1 && git push origin v0.1.1`。
+3. CI 并行执行两个平台任务：`macos-14` 构建 arm64 dmg，`windows-latest` 构建 x64 NSIS 安装包；两边都先跑 typecheck、单测与 SDK 冒烟测试，并校验 SDK 原生二进制已解包出 asar。
+4. 构建通过后自动创建**草稿 Release**，附 dmg、exe 与 `SHA256SUMS.txt`；真机安装验收后到 GitHub Releases 页面手动发布。
 
 手动触发（`workflow_dispatch`）只构建并保留产物，不创建 Release（没有 tag）。扩展平台时在 workflow 矩阵中添加对应行，并同步 `release` 步骤的文件匹配。
 

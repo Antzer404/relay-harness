@@ -25,16 +25,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only the Apple Silicon dmg ships in the first release. Re-add rows
-        # here (and their patterns in the release job) when other platforms
-        # should be published too:
-        #   - os: windows-latest / command: npm run dist:win / artifacts: release/*.exe
-        #   - os: macos-13       / command: npx electron-builder --mac --x64 / release/*.dmg
+        # Published platforms. macOS is ad-hoc signed; Windows is unsigned and
+        # shows a SmartScreen prompt on first launch.
         include:
           - os: macos-14
             name: macos-arm64
             command: npx electron-builder --mac --arm64
             artifacts: release/*.dmg
+          - os: windows-latest
+            name: windows-x64
+            command: npx electron-builder --win --x64
+            artifacts: release/*.exe
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -60,15 +61,16 @@ jobs:
         run: npm run build:app
 
       - name: Package
-        # mac.identity is "-" in electron-builder.yml, so the app is ad-hoc
-        # signed here. Without a Developer ID certificate macOS will warn on
-        # first launch; the release notes explain the one-time bypass.
+        # macOS: mac.identity is "-" in electron-builder.yml, so the app is
+        # ad-hoc signed here. Without a Developer ID certificate macOS will
+        # warn on first launch; the release notes explain the one-time bypass.
         run: ${{ matrix.command }}
 
       - name: Verify SDK binary unpacked from asar
         run: node scripts/verify-package.mjs
 
       - name: Show artifacts
+        shell: bash
         run: ls -lh release
 
       - uses: actions/upload-artifact@v4
@@ -97,7 +99,7 @@ jobs:
       - name: Generate checksums
         working-directory: dist
         run: |
-          sha256sum *.dmg > SHA256SUMS.txt
+          sha256sum *.dmg *.exe > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create draft release
@@ -108,5 +110,6 @@ jobs:
           body_path: docs/release-notes.md
           files: |
             dist/*.dmg
+            dist/*.exe
             dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
