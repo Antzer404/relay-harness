@@ -2,7 +2,7 @@
 
 桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
 
-> 状态：**M2 已完成，Project 模式（多智能体）MVP 已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
+> 状态：**M2 已完成，Project 模式（多智能体）MVP 已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆、技能管理（含 5 个内置技能）与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
 
 ## 快速开始
 
