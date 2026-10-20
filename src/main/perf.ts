@@ -27,6 +27,16 @@ export function lowEffects(): boolean {
   return gpuStatus().gpu_compositing !== 'enabled'
 }
 
+/**
+ * True when Chromium is compositing on the GPU. A machine that cannot launch
+ * its GPU process at all reports software compositing here and then dies with
+ * "GPU process isn't usable", so the main process uses this before creating
+ * any window to decide whether a software relaunch is needed.
+ */
+export function gpuCompositingEnabled(): boolean {
+  return gpuStatus().gpu_compositing === 'enabled'
+}
+
 export function logGpuStatus(): void {
   const status = gpuStatus()
   console.log(

@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { ConfigService } from './services/config-service'
 import { HostRegistry } from './hosts'
 import { registerIpc } from './ipc'
-import { logGpuStatus } from './perf'
+import { gpuCompositingEnabled, logGpuStatus } from './perf'
 
 let registry: HostRegistry | null = null
 
@@ -18,6 +18,13 @@ if (process.env.RELAY_DISABLE_GPU === '1') {
   // cannot be spawned at all.
   app.commandLine.appendSwitch('in-process-gpu')
   console.log('[relay] hardware acceleration disabled (RELAY_DISABLE_GPU=1)')
+} else {
+  // Chromium otherwise aborts the whole app ("GPU process isn't usable.
+  // Goodbye.") after a few failed GPU launches, so a host whose GPU process
+  // cannot start never reaches the window. With the limit disabled the app
+  // keeps running and compositing falls back to software; the renderer sees
+  // that through getGPUFeatureStatus() and switches to low effects.
+  app.commandLine.appendSwitch('disable-gpu-process-crash-limit')
 }
 
 // Last-resort switch for environments where Chromium child process launch is
@@ -41,6 +48,9 @@ if (!gotLock) {
   app.whenReady().then(() => {
     app.setAppUserModelId('com.antzer404.relay')
     logGpuStatus()
+    if (!gpuCompositingEnabled()) {
+      console.warn('[relay] GPU compositing unavailable; running with software rendering')
+    }
 
     const userDataDir = app.getPath('userData')
     const config = new ConfigService(userDataDir)
