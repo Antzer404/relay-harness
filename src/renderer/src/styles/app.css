@@ -2571,6 +2571,7 @@ html[data-lowfx='1'] .rly-starter,
 html[data-lowfx='1'] .rly-jump,
 html[data-lowfx='1'] .rly-scrim,
 html[data-lowfx='1'] .rly-settings,
+html[data-lowfx='1'] .rly-handoff,
 html[data-lowfx='1'] .rly-trace-drawer {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -2590,6 +2591,7 @@ html[data-lowfx='1'] .rly-scrim {
    surface per frame in software mode; show dialogs instantly instead. */
 html[data-lowfx='1'] .rly-scrim,
 html[data-lowfx='1'] .rly-settings,
+html[data-lowfx='1'] .rly-handoff,
 html[data-lowfx='1'] .rly-trace-drawer {
   animation: none;
 }
@@ -2598,4 +2600,229 @@ html[data-lowfx='1'] .rly-mode-pop {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   animation: none;
+}
+
+/* ---------------------------------------------------------------- handoff */
+
+.rly-context-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 860px;
+  margin: 0 auto 8px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-strong);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.rly-context-alert-text em {
+  font-style: normal;
+  color: var(--text-3);
+  margin-left: 3px;
+}
+
+.rly-context-alert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 560;
+  box-shadow: 0 3px 10px rgba(201, 117, 42, 0.28);
+  transition: filter 0.15s ease;
+}
+
+.rly-context-alert-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.rly-context-alert-btn:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.rly-handoff-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-2);
+  font-size: 12px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.rly-handoff-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.rly-handoff-btn.is-alert {
+  color: var(--accent);
+  border-color: var(--accent-soft-strong);
+  background: var(--accent-soft);
+}
+
+.rly-handoff-btn svg {
+  opacity: 0.75;
+}
+
+.rly-session-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rly-session-head .rly-session-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.rly-session-badge {
+  flex: none;
+  font-size: 9.5px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-strong);
+}
+
+.rly-handoff {
+  display: flex;
+  flex-direction: column;
+  width: min(780px, 92vw);
+  max-height: 86vh;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface-dialog);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(30px) saturate(170%);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  animation: rly-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+.rly-handoff-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rly-handoff-title {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.rly-handoff-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  flex: none;
+}
+
+.rly-handoff-title h2 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 650;
+}
+
+.rly-handoff-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.rly-handoff-editor {
+  flex: 1;
+  min-height: 260px;
+  width: 100%;
+  resize: none;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rly-handoff-editor:focus {
+  border-color: var(--accent-soft-strong);
+  box-shadow: var(--ring);
+}
+
+.rly-handoff-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.rly-handoff-state p {
+  margin: 0;
+}
+
+.rly-handoff-state.is-error {
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  background: var(--danger-soft);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--danger);
+}
+
+.rly-spinner {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft-strong);
+  border-top-color: var(--accent);
+  animation: rly-spin 0.9s linear infinite;
+}
+
+.rly-handoff-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.rly-handoff-actions {
+  display: flex;
+  gap: 8px;
 }

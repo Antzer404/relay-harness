@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { PERMISSION_OPTIONS, type VisiblePermissionMode } from '@shared/events'
 import { useRelayStore } from '../store/useRelayStore'
-import { IconChevron, IconSend, IconStop } from './icons'
+import { IconChevron, IconRelay, IconSend, IconStop } from './icons'
 
 const MODE_SHORT: Record<VisiblePermissionMode, string> = {
   default: '每次询问',
@@ -108,10 +108,19 @@ export function Composer(): React.JSX.Element {
   const phase = useRelayStore((state) => state.phase)
   const queued = useRelayStore((state) => state.queued)
   const hasKey = useRelayStore((state) => state.bootstrap?.hasApiKey ?? false)
+  const usage = useRelayStore((state) => state.usage)
+  const threshold = useRelayStore(
+    (state) => state.bootstrap?.settings.handoffThreshold ?? 70
+  )
+  const current = useRelayStore((state) => state.current)
+  const handoffStatus = useRelayStore((state) => state.handoffStatus)
+  const openHandoff = useRelayStore((state) => state.openHandoff)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const busy = phase === 'busy' || phase === 'starting'
   const canSend = hasKey && draft.trim().length > 0
+  const pressure = usage !== null && usage.percent >= threshold
+  const handoffGenerating = handoffStatus === 'generating'
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -158,6 +167,23 @@ export function Composer(): React.JSX.Element {
 
   return (
     <div className="rly-composer-dock">
+      {pressure && usage ? (
+        <div className="rly-context-alert" role="status">
+          <span className="rly-context-alert-text">
+            上下文已用 {usage.percent.toFixed(0)}%，接近自动压缩
+            <em>（{threshold}% 提醒）</em>
+          </span>
+          <button
+            type="button"
+            className="rly-context-alert-btn"
+            disabled={busy || handoffGenerating}
+            onClick={() => void openHandoff()}
+          >
+            <IconRelay size={13} />
+            <span>{handoffGenerating ? '生成中…' : '交接'}</span>
+          </button>
+        </div>
+      ) : null}
       <div className="rly-composer">
         <textarea
           ref={textareaRef}
@@ -186,6 +212,17 @@ export function Composer(): React.JSX.Element {
             </span>
           </div>
           <div className="rly-composer-buttons">
+            {current ? (
+              <button
+                type="button"
+                className={`rly-handoff-btn${pressure ? ' is-alert' : ''}`}
+                title="把当前会话整理成交接文档，在新会话中继续"
+                onClick={() => void openHandoff()}
+              >
+                <IconRelay size={14} />
+                <span>{handoffGenerating ? '生成中' : '交接'}</span>
+              </button>
+            ) : null}
             {busy ? (
               <button
                 type="button"

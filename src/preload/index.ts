@@ -28,6 +28,15 @@ const api: RelayApi = {
     ipcRenderer.invoke(IPC_CHANNELS.clearWorkspaceConfig, { cwd }),
   removeAllowedTool: (cwd, rule) =>
     ipcRenderer.invoke(IPC_CHANNELS.removeAllowedTool, { cwd, rule }),
+  requestHandoff: () => ipcRenderer.invoke(IPC_CHANNELS.requestHandoff),
+  listHandoffs: (sessionId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.listHandoffs, sessionId ? { sessionId } : {}),
+  updateHandoff: (handoffId, markdown) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateHandoff, { handoffId, markdown }),
+  deleteHandoff: (handoffId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.deleteHandoff, { handoffId }),
+  acceptHandoff: (handoffId, markdown) =>
+    ipcRenderer.invoke(IPC_CHANNELS.acceptHandoff, { handoffId, markdown }),
   windowControl: (action) => ipcRenderer.invoke(IPC_CHANNELS.windowControl, { action }),
   onEvent: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: RelayEvent): void => {

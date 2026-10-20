@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { safeStorage } from 'electron'
-import { toolRuleName } from '@shared/events'
+import { DEFAULT_HANDOFF_THRESHOLD, toolRuleName } from '@shared/events'
 import type {
   EffectiveSettings,
   EffortLevel,
@@ -29,7 +29,7 @@ export interface WindowState {
 }
 
 interface PersistedSettings {
-  version: 2
+  version: 3
   baseUrl: string
   model: string
   effort: EffortLevel
@@ -37,6 +37,7 @@ interface PersistedSettings {
   workspace: string
   theme: ThemeMode
   devMode: boolean
+  handoffThreshold: number
   apiKey?: PersistedApiKey | null
   windowState?: WindowState
 }
@@ -112,7 +113,7 @@ export class ConfigService {
 
   private defaults(): PersistedSettings {
     return {
-      version: 2,
+      version: 3,
       baseUrl: DEFAULT_BASE_URL,
       model: DEFAULT_MODEL,
       effort: 'high',
@@ -120,6 +121,7 @@ export class ConfigService {
       workspace: join(this.userDataDir, 'workspace'),
       theme: 'system',
       devMode: false,
+      handoffThreshold: DEFAULT_HANDOFF_THRESHOLD,
       apiKey: null
     }
   }
@@ -131,7 +133,7 @@ export class ConfigService {
       const base = this.defaults()
       const settings: PersistedSettings = {
         ...base,
-        version: 2,
+        version: 3,
         baseUrl: typeof raw.baseUrl === 'string' && raw.baseUrl ? raw.baseUrl : base.baseUrl,
         model: typeof raw.model === 'string' && raw.model ? raw.model : base.model,
         effort: raw.effort === 'high' || raw.effort === 'max' ? raw.effort : base.effort,
@@ -148,6 +150,13 @@ export class ConfigService {
             ? raw.theme
             : base.theme,
         devMode: raw.devMode === true,
+        handoffThreshold:
+          typeof raw.handoffThreshold === 'number' &&
+          Number.isInteger(raw.handoffThreshold) &&
+          raw.handoffThreshold >= 50 &&
+          raw.handoffThreshold <= 90
+            ? raw.handoffThreshold
+            : base.handoffThreshold,
         // Never accept a persisted plaintext key.
         apiKey:
           isRecord(raw.apiKey) &&
@@ -189,7 +198,8 @@ export class ConfigService {
       permissionMode: this.data.permissionMode,
       workspace: this.data.workspace,
       theme: this.data.theme,
-      devMode: this.data.devMode
+      devMode: this.data.devMode,
+      handoffThreshold: this.data.handoffThreshold
     }
   }
 
@@ -200,6 +210,7 @@ export class ConfigService {
     if (patch.permissionMode !== undefined) this.data.permissionMode = patch.permissionMode
     if (patch.theme !== undefined) this.data.theme = patch.theme
     if (patch.devMode !== undefined) this.data.devMode = patch.devMode
+    if (patch.handoffThreshold !== undefined) this.data.handoffThreshold = patch.handoffThreshold
     if (patch.workspace !== undefined) {
       this.data.workspace = patch.workspace
       mkdirSync(patch.workspace, { recursive: true })

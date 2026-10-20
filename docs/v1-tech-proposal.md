@@ -178,6 +178,8 @@ CLAUDE_CODE_AUTO_COMPACT_WINDOW=786432     # 与 1M 窗口配合；我们的交�
 - 新会话：`sessionId` 新建，SessionStart hook 注入交接文档全文；记录 `handoff_from` 形成接力链。
 - 可选：`resume + compact` 作为次要路径（保留在设置里），不作为默认。
 
+**实现修订（2026-10-20，M2 交接链）**：生成改为一次独立的摘要调用——读取该会话已落盘的耐久事件、压缩成带预算的对话记录，直连 DeepSeek 端点生成文档，不向当前会话追加系统指令。理由：交接恰好在上下文接近上限时发生，不应再占用会话上下文，也避免把交接指令留在时间线里；且会话停止后仍可生成。阈值默认 70%（低于 auto-compact 的 75%），达到时只做提示，由用户手动发起；文档可编辑、可重新生成，确认后新建会话并记录 `handoffFrom`，注入走 `systemPromptAppend` 而非 hook。
+
 ### 5.4 上下文仪表
 
 取 `result.modelUsage` 的 `contextWindow` 与 `usage`（含缓存读写）计算填充率；DeepSeek `[1m]` 档按 1M 配置，cache hit/miss 映射为近似值并标注"估算"。设置里可关闭 CLI auto-compact，把压缩权交给我们的交接逻辑（策略：auto-compact 保留、交接阈值设在其下方，避免打架）。

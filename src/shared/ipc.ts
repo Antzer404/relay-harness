@@ -1,5 +1,6 @@
 import type {
   BootstrapState,
+  HandoffDoc,
   IpcResult,
   PermissionDecision,
   RelayEvent,
@@ -35,6 +36,11 @@ export const IPC_CHANNELS = {
   writeWorkspaceConfig: 'relay:write-workspace-config',
   clearWorkspaceConfig: 'relay:clear-workspace-config',
   removeAllowedTool: 'relay:remove-allowed-tool',
+  requestHandoff: 'relay:request-handoff',
+  listHandoffs: 'relay:list-handoffs',
+  updateHandoff: 'relay:update-handoff',
+  deleteHandoff: 'relay:delete-handoff',
+  acceptHandoff: 'relay:accept-handoff',
   windowControl: 'relay:window-control',
   event: 'relay:event',
   permissionCancelled: 'relay:permission-cancelled',
@@ -73,6 +79,13 @@ export interface RelayApi {
     cwd: string | undefined,
     rule: string
   ): Promise<IpcResult<WorkspaceConfigInfo>>
+  /** Generates a handoff document from the active session's event log. */
+  requestHandoff(): Promise<IpcResult<HandoffDoc>>
+  listHandoffs(sessionId?: string): Promise<IpcResult<HandoffDoc[]>>
+  updateHandoff(handoffId: string, markdown: string): Promise<IpcResult<HandoffDoc>>
+  deleteHandoff(handoffId: string): Promise<IpcResult<void>>
+  /** Creates (does not start) the follow-up session; open it to resume work. */
+  acceptHandoff(handoffId: string, markdown?: string): Promise<IpcResult<SessionRecord>>
   windowControl(action: WindowControlAction): Promise<IpcResult<void>>
   onEvent(callback: (event: RelayEvent) => void): () => void
   onPermissionCancelled(callback: (requestId: string) => void): () => void

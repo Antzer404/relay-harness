@@ -6,6 +6,7 @@ import { Timeline } from './components/Timeline'
 import { Composer } from './components/Composer'
 import { SettingsDialog } from './components/SettingsDialog'
 import { TraceDrawer } from './components/TraceDrawer'
+import { HandoffDialog } from './components/HandoffDialog'
 
 export function App(): React.JSX.Element {
   const init = useRelayStore((state) => state.init)
@@ -94,6 +95,7 @@ export function App(): React.JSX.Element {
 
       <SettingsDialog />
       <TraceDrawer />
+      <HandoffDialog />
     </div>
   )
 }

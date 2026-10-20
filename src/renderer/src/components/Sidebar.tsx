@@ -83,7 +83,17 @@ export function Sidebar(): React.JSX.Element {
                     />
                   ) : (
                     <div className="rly-session-main">
-                      <span className="rly-session-title">{record.title}</span>
+                      <span className="rly-session-head">
+                        <span className="rly-session-title">{record.title}</span>
+                        {record.handoffFrom ? (
+                          <span
+                            className="rly-session-badge"
+                            title="由交接文档创建"
+                          >
+                            接力
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="rly-session-meta">
                         {baseName(record.cwd)} · {relativeTime(record.updatedAt)}
                       </span>

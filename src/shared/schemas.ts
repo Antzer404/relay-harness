@@ -27,7 +27,8 @@ export const settingsPatchSchema = z
     permissionMode: z.enum(['default', 'plan', 'acceptEdits']).optional(),
     workspace: z.string().trim().min(1).max(4096).optional(),
     theme: z.enum(['light', 'dark', 'system']).optional(),
-    devMode: z.boolean().optional()
+    devMode: z.boolean().optional(),
+    handoffThreshold: z.number().int().min(50).max(90).optional()
   })
   .strict()
 
@@ -87,6 +88,36 @@ export const sendSchema = z.object({
 export const setPermissionModeSchema = z
   .object({
     mode: z.enum(['default', 'plan', 'acceptEdits'])
+  })
+  .strict()
+
+const handoffMarkdownSchema = z
+  .string()
+  .trim()
+  .min(1, '交接文档不能为空')
+  .max(60_000, '交接文档过长')
+
+export const handoffIdSchema = z.object({
+  handoffId: z.uuid()
+})
+
+export const listHandoffsSchema = z
+  .object({
+    sessionId: z.uuid().optional()
+  })
+  .strict()
+
+export const updateHandoffSchema = z
+  .object({
+    handoffId: z.uuid(),
+    markdown: handoffMarkdownSchema
+  })
+  .strict()
+
+export const acceptHandoffSchema = z
+  .object({
+    handoffId: z.uuid(),
+    markdown: handoffMarkdownSchema.optional()
   })
   .strict()
 

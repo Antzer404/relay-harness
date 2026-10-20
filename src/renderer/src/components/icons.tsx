@@ -128,6 +128,18 @@ export function IconStop({ size = 15 }: IconProps): React.JSX.Element {
   return <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor" /></svg>
 }
 
+export function IconRelay({ size = 16 }: IconProps): React.JSX.Element {
+  return base(
+    size,
+    <>
+      <path d="M4 7h12a3 3 0 0 1 3 3v4" />
+      <path d="m15 4 4 3-4 3" />
+      <path d="M20 17H8a3 3 0 0 1-3-3v-4" />
+      <path d="m9 20-4-3 4-3" />
+    </>
+  )
+}
+
 export function IconSpark({ size = 16 }: IconProps): React.JSX.Element {
   return base(
     size,

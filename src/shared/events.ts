@@ -184,6 +184,29 @@ export interface RelaySettings {
   workspace: string
   theme: ThemeMode
   devMode: boolean
+  /** Context fill (percent) at which the composer suggests handing off. */
+  handoffThreshold: number
+}
+
+/** Below the CLI auto-compact window (786432 / 1M = 75%). */
+export const DEFAULT_HANDOFF_THRESHOLD = 70
+
+/**
+ * A handoff document generated from one session's durable events. It can be
+ * edited before acceptance; accepting it creates a new session whose
+ * `handoffFrom` points back at the source.
+ */
+export interface HandoffDoc {
+  id: string
+  fromSessionId: string
+  fromTitle: string
+  markdown: string
+  model: string
+  /** Context fill at generation time (percent), when known. */
+  contextPercent: number | null
+  createdAt: number
+  toSessionId: string | null
+  usedAt: number | null
 }
 
 export type SettingsSource = 'app' | 'workspace' | 'workspace-local'
@@ -238,6 +261,8 @@ export interface SessionRecord {
   updatedAt: number
   cliSessionId: string | null
   eventCount: number
+  /** Source session when this one was created from a handoff document. */
+  handoffFrom: string | null
 }
 
 export interface SessionDetail {
@@ -289,6 +314,7 @@ export interface SaveSettingsPatch {
   workspace?: string
   theme?: ThemeMode
   devMode?: boolean
+  handoffThreshold?: number
 }
 
 /** Resume `sessionId` (a SessionRecord id); omit to create a new session. */

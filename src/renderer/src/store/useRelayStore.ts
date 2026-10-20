@@ -4,6 +4,7 @@ import {
   toVisiblePermissionMode,
   type BootstrapState,
   type EffortLevel,
+  type HandoffDoc,
   type HarnessEvent,
   type IpcResult,
   type PermissionDecisionKind,
@@ -46,6 +47,8 @@ export type {
 
 export type RightDrawer = 'settings' | 'trace' | null
 
+export type HandoffStatus = 'idle' | 'generating' | 'ready' | 'error'
+
 let counter = 0
 let initStarted = false
 const nextId = (prefix: string): string => {
@@ -75,6 +78,13 @@ export interface RelayState {
   sidebarOpen: boolean
   maximized: boolean
   sending: boolean
+  /** Handoff preview dialog: a draft is generated, edited, then accepted. */
+  handoffOpen: boolean
+  handoffStatus: HandoffStatus
+  handoffDoc: HandoffDoc | null
+  handoffError: string | null
+  /** Documents that belong to the active session (as source or target). */
+  handoffs: HandoffDoc[]
 
   init: () => Promise<void>
   handleEvent: (envelope: RelayEvent) => void
@@ -108,6 +118,11 @@ export interface RelayState {
   ) => Promise<IpcResult<BootstrapState>>
   clearWorkspaceConfig: () => Promise<IpcResult<BootstrapState>>
   removeAllowedTool: (rule: string) => Promise<IpcResult<void>>
+  openHandoff: () => Promise<void>
+  regenerateHandoff: () => Promise<void>
+  closeHandoff: () => void
+  acceptHandoff: (markdown: string) => Promise<void>
+  refreshHandoffs: (sessionId?: string) => Promise<void>
 }
 
 // --------------------------------------------------------------------- items
@@ -409,6 +424,22 @@ function errorItem(message: string): ErrorItem {
   }
 }
 
+function noticeItem(text: string, at = Date.now()): NoticeItem {
+  return { kind: 'notice', id: nextId('notice'), text, at }
+}
+
+/** Marks the start of a session that was created from a handoff document. */
+function handoffNotice(
+  record: SessionRecord | undefined,
+  sessions: SessionRecord[]
+): NoticeItem | null {
+  if (!record?.handoffFrom) return null
+  const source = sessions.find((entry) => entry.id === record.handoffFrom)
+  return noticeItem(
+    `已从「${source?.title ?? '上一会话'}」接手，交接文档已注入上下文。`
+  )
+}
+
 // -------------------------------------------------------------------- store
 
 export const useRelayStore = create<RelayState>((set, get) => ({
@@ -431,6 +462,11 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   sidebarOpen: true,
   maximized: false,
   sending: false,
+  handoffOpen: false,
+  handoffStatus: 'idle',
+  handoffDoc: null,
+  handoffError: null,
+  handoffs: [],
 
   init: async () => {
     if (initStarted) return
@@ -470,8 +506,13 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     if (bootstrap.session) {
       const detail = await window.relay.loadSession(bootstrap.session.id)
       if (detail.ok) {
+        const record = bootstrap.sessions.find(
+          (entry) => entry.id === bootstrap.session?.id
+        )
+        const notice = handoffNotice(record, bootstrap.sessions)
+        const replayed = replayItems(detail.data.events)
         set({
-          items: replayItems(detail.data.events),
+          items: notice ? [notice, ...replayed] : replayed,
           phase: 'idle',
           permissionMode: modeFromEvents(
             detail.data.events,
@@ -638,7 +679,12 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       trace: [],
       usage: null,
       permissionMode: get().bootstrap?.effective.permissionMode ?? 'default',
-      phase: 'ready'
+      phase: 'ready',
+      handoffOpen: false,
+      handoffStatus: 'idle',
+      handoffDoc: null,
+      handoffError: null,
+      handoffs: []
     })
     await get().refreshSessions()
     if (get().queued.length > 0) {
@@ -659,10 +705,12 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       set((s) => ({ items: addItem(s.items, errorItem(detail.error.message)) }))
       return
     }
+    const replay = replayItems(detail.data.events)
+    const notice = handoffNotice(detail.data.record, get().sessions)
     set({
       activeId: sessionId,
       current: null,
-      items: replayItems(detail.data.events),
+      items: notice ? [notice, ...replay] : replay,
       trace: [],
       usage: null,
       permissionMode: modeFromEvents(
@@ -670,7 +718,12 @@ export const useRelayStore = create<RelayState>((set, get) => ({
         get().bootstrap?.effective.permissionMode ?? 'default'
       ),
       queued: [],
-      phase: 'idle'
+      phase: 'idle',
+      handoffOpen: false,
+      handoffStatus: 'idle',
+      handoffDoc: null,
+      handoffError: null,
+      handoffs: []
     })
 
     if (!get().bootstrap?.hasApiKey) return
@@ -799,6 +852,86 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     if (!result.ok) return result
     await get().refreshBootstrap()
     return { ok: true, data: undefined }
+  },
+
+  // ------------------------------------------------------------------ handoff
+
+  refreshHandoffs: async (sessionId) => {
+    const result = await window.relay.listHandoffs(sessionId ?? get().activeId ?? undefined)
+    if (result.ok) set({ handoffs: result.data })
+  },
+
+  /**
+   * Opens the handoff dialog. An existing draft for this session is reused so
+   * a second click does not spend another summary call.
+   */
+  openHandoff: async () => {
+    const state = get()
+    if (!state.current || !state.activeId) {
+      set((s) => ({
+        items: addItem(s.items, errorItem('还没有可交接的会话，先发送一条消息。'))
+      }))
+      return
+    }
+    if (state.handoffStatus === 'generating') {
+      set({ handoffOpen: true })
+      return
+    }
+    const listed = await window.relay.listHandoffs(state.activeId)
+    if (listed.ok) {
+      const draft = listed.data.find(
+        (doc) => doc.fromSessionId === state.activeId && !doc.toSessionId
+      )
+      if (draft) {
+        set({
+          handoffs: listed.data,
+          handoffOpen: true,
+          handoffStatus: 'ready',
+          handoffDoc: draft,
+          handoffError: null
+        })
+        return
+      }
+    }
+    await get().regenerateHandoff()
+  },
+
+  regenerateHandoff: async () => {
+    if (!get().current) return
+    set({
+      handoffOpen: true,
+      handoffStatus: 'generating',
+      handoffDoc: null,
+      handoffError: null
+    })
+    const result = await window.relay.requestHandoff()
+    if (!result.ok) {
+      set({ handoffStatus: 'error', handoffError: result.error.message })
+      return
+    }
+    set({ handoffStatus: 'ready', handoffDoc: result.data })
+    await get().refreshHandoffs()
+  },
+
+  closeHandoff: () => set({ handoffOpen: false }),
+
+  acceptHandoff: async (markdown) => {
+    const doc = get().handoffDoc
+    const trimmed = markdown.trim()
+    if (!doc || !trimmed) return
+    const result = await window.relay.acceptHandoff(doc.id, trimmed)
+    if (!result.ok) {
+      set({ handoffStatus: 'error', handoffError: result.error.message })
+      return
+    }
+    set({
+      handoffOpen: false,
+      handoffStatus: 'idle',
+      handoffDoc: null,
+      handoffError: null
+    })
+    await get().refreshSessions()
+    await get().openSession(result.data.id)
   }
 }))
 

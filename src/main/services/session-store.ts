@@ -48,7 +48,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseRecord(value: unknown): SessionRecord | null {
   if (!isRecord(value)) return null
-  const { id, title, cwd, model, createdAt, updatedAt, cliSessionId, eventCount } = value
+  const { id, title, cwd, model, createdAt, updatedAt, cliSessionId, eventCount, handoffFrom } =
+    value
   if (typeof id !== 'string' || !id) return null
   return {
     id,
@@ -58,7 +59,8 @@ function parseRecord(value: unknown): SessionRecord | null {
     createdAt: typeof createdAt === 'number' ? createdAt : Date.now(),
     updatedAt: typeof updatedAt === 'number' ? updatedAt : Date.now(),
     cliSessionId: typeof cliSessionId === 'string' ? cliSessionId : null,
-    eventCount: typeof eventCount === 'number' ? eventCount : 0
+    eventCount: typeof eventCount === 'number' ? eventCount : 0,
+    handoffFrom: typeof handoffFrom === 'string' ? handoffFrom : null
   }
 }
 
@@ -109,7 +111,8 @@ export class SessionStore {
           createdAt: stats.birthtimeMs,
           updatedAt: stats.mtimeMs,
           cliSessionId: null,
-          eventCount: 0
+          eventCount: 0,
+          handoffFrom: null
         })
       } catch {
         // Ignore unreadable files.

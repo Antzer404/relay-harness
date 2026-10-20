@@ -2,7 +2,10 @@ import { dialog, ipcMain, type BrowserWindow } from 'electron'
 import type { IpcResult } from '@shared/events'
 import { IPC_CHANNELS } from '@shared/ipc'
 import {
+  acceptHandoffSchema,
   apiKeySchema,
+  handoffIdSchema,
+  listHandoffsSchema,
   permissionDecisionSchema,
   removeAllowedToolSchema,
   renameSessionSchema,
@@ -11,6 +14,7 @@ import {
   setPermissionModeSchema,
   settingsPatchSchema,
   startSessionSchema,
+  updateHandoffSchema,
   windowControlSchema,
   workspaceConfigCwdSchema,
   workspaceConfigSchema
@@ -205,6 +209,39 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
         cwd ?? config.getSettings().workspace,
         rule
       )
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.requestHandoff, () =>
+    run(() => sessions.requestHandoff())
+  )
+
+  ipcMain.handle(IPC_CHANNELS.listHandoffs, (_event, raw: unknown) =>
+    run(() => {
+      const { sessionId } = raw === undefined ? {} : listHandoffsSchema.parse(raw)
+      return sessions.listHandoffs(sessionId)
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.updateHandoff, (_event, raw: unknown) =>
+    run(() => {
+      const { handoffId, markdown } = updateHandoffSchema.parse(raw)
+      return sessions.updateHandoff(handoffId, markdown)
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.deleteHandoff, (_event, raw: unknown) =>
+    run(() => {
+      const { handoffId } = handoffIdSchema.parse(raw)
+      sessions.deleteHandoff(handoffId)
+      return undefined
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.acceptHandoff, (_event, raw: unknown) =>
+    run(() => {
+      const { handoffId, markdown } = acceptHandoffSchema.parse(raw)
+      return sessions.acceptHandoff(handoffId, markdown)
     })
   )
 

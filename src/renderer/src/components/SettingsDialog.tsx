@@ -63,6 +63,9 @@ function SettingsBody(): React.JSX.Element | null {
   const [permissionMode, setPermissionMode] = useState<VisiblePermissionMode>(
     settings?.permissionMode ?? 'default'
   )
+  const [handoffThreshold, setHandoffThreshold] = useState(
+    settings?.handoffThreshold ?? 70
+  )
   const [apiKey, setApiKey] = useState('')
 
   const [wsModel, setWsModel] = useState(workspaceConfig?.values.model ?? '')
@@ -95,7 +98,14 @@ function SettingsBody(): React.JSX.Element | null {
 
   const saveModelSettings = (): Promise<void> =>
     run(async () => {
-      const result = await saveSettings({ baseUrl, model, effort, permissionMode })
+      const threshold = Math.min(90, Math.max(50, Math.round(handoffThreshold || 70)))
+      const result = await saveSettings({
+        baseUrl,
+        model,
+        effort,
+        permissionMode,
+        handoffThreshold: threshold
+      })
       setStatus(
         result.ok
           ? { kind: 'ok', message: '已保存。模型与权限设置将在下次启动会话时生效。' }
@@ -318,6 +328,24 @@ function SettingsBody(): React.JSX.Element | null {
                   </button>
                 ))}
               </div>
+
+              <label className="rly-field-label" htmlFor="rly-handoff-threshold">
+                交接提醒阈值（%）
+              </label>
+              <input
+                id="rly-handoff-threshold"
+                className="rly-input"
+                type="number"
+                min={50}
+                max={90}
+                step={1}
+                value={handoffThreshold}
+                onChange={(event) => setHandoffThreshold(Number(event.target.value))}
+              />
+              <p className="rly-hint">
+                上下文填充率达到该值时，输入框上方会提示交接。要低于 CLI
+                自动压缩的 75%，否则会先被压缩。
+              </p>
 
               <p className="rly-hint">
                 工作区可以在 <code>.relay/settings.json</code> 中覆盖这些默认值。
