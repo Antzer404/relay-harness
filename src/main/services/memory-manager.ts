@@ -38,6 +38,8 @@ interface MemoryManagerOptions {
   log?: (message: string) => void
   distiller?: MemoryDistiller
   debounceMs?: number
+  /** Shared across windows so both hosts see the same entries and cursors. */
+  memoryStore?: MemoryStore
 }
 
 type Outcome = 'done' | 'empty' | 'missing' | 'failed' | 'no_key' | 'again'
@@ -74,7 +76,7 @@ export class MemoryManager {
   private disposed = false
 
   constructor(private readonly options: MemoryManagerOptions) {
-    this.store = new MemoryStore(options.userDataDir)
+    this.store = options.memoryStore ?? new MemoryStore(options.userDataDir)
     this.distiller = options.distiller ?? deepSeekMemoryDistiller
     this.debounceMs = options.debounceMs ?? MEMORY_DEBOUNCE_MS
   }

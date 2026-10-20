@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
   clearApiKey: 'relay:clear-api-key',
   saveSettings: 'relay:save-settings',
   chooseWorkspace: 'relay:choose-workspace',
+  openProjectWindow: 'relay:open-project-window',
   startSession: 'relay:start-session',
   stopSession: 'relay:stop-session',
   send: 'relay:send',
@@ -59,6 +60,8 @@ export interface RelayApi {
   clearApiKey(): Promise<IpcResult<void>>
   saveSettings(patch: SaveSettingsPatch): Promise<IpcResult<RelaySettings>>
   chooseWorkspace(): Promise<IpcResult<string | null>>
+  /** Main window only: picks a folder and opens (or focuses) its Project window. */
+  openProjectWindow(): Promise<IpcResult<boolean>>
   startSession(options?: StartSessionOptions): Promise<IpcResult<SessionSummary>>
   stopSession(): Promise<IpcResult<void>>
   send(text: string): Promise<IpcResult<void>>

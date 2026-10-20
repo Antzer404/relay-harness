@@ -1,4 +1,4 @@
-import { dialog, ipcMain, type BrowserWindow } from 'electron'
+import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { IpcResult } from '@shared/events'
 import { IPC_CHANNELS } from '@shared/ipc'
 import {
@@ -19,15 +19,15 @@ import {
   workspaceConfigCwdSchema,
   workspaceConfigSchema
 } from '@shared/schemas'
+import type { HostRegistry, SessionHost } from './hosts'
 import type { ConfigService } from './services/config-service'
-import { RelayError, type SessionManager } from './services/session-manager'
+import { RelayError } from './services/session-manager'
 import { lowEffects } from './perf'
 
 interface IpcDeps {
   appVersion: string
   config: ConfigService
-  sessions: SessionManager
-  getWindow: () => BrowserWindow | null
+  hosts: HostRegistry
 }
 
 function fail(code: string, message: string): IpcResult<never> {
@@ -52,17 +52,30 @@ async function run<T>(fn: () => Promise<T> | T): Promise<IpcResult<T>> {
   }
 }
 
-function parseCwd(config: ConfigService, raw: unknown): string {
+function hostOf(hosts: HostRegistry, event: IpcMainInvokeEvent): SessionHost {
+  const host = hosts.hostFor(event.sender.id)
+  if (!host) throw new RelayError('window_missing', '找不到这个窗口对应的会话')
+  return host
+}
+
+function parseCwd(host: SessionHost, config: ConfigService, raw: unknown): string {
+  if (host.kind === 'project' && host.folder) return host.folder
   const parsed = workspaceConfigCwdSchema.parse(raw ?? {})
   return parsed.cwd ?? config.getSettings().workspace
 }
 
-export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps): void {
-  ipcMain.handle(IPC_CHANNELS.bootstrap, () =>
+function scopedCwd(host: SessionHost, config: ConfigService, cwd: string | undefined): string {
+  if (host.kind === 'project' && host.folder) return host.folder
+  return cwd ?? config.getSettings().workspace
+}
+
+export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
+  ipcMain.handle(IPC_CHANNELS.bootstrap, (event) =>
     run(() => {
+      const host = hostOf(hosts, event)
       config.ensureWorkspace()
       const settings = config.getSettings()
-      const cwd = settings.workspace
+      const cwd = host.folder ?? settings.workspace
       return {
         appVersion,
         electronVersion: process.versions.electron,
@@ -73,11 +86,13 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
         settings,
         effective: config.effectiveSettings(cwd),
         workspaceConfig: config.readWorkspaceConfig(cwd),
-        session: sessions.getCurrent(),
-        sessions: sessions.getSessions(),
+        session: host.sessions.getCurrent(),
+        sessions: host.sessions.getSessions(),
         lowEffects: lowEffects(),
-        memory: sessions.getMemoryInfo(cwd),
-        sdk: sessions.getSdkInfo()
+        windowKind: host.kind,
+        project: host.sessions.getProjectInfo(),
+        memory: host.sessions.getMemoryInfo(cwd),
+        sdk: host.sessions.getSdkInfo()
       }
     })
   )
@@ -104,9 +119,13 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.chooseWorkspace, () =>
+  ipcMain.handle(IPC_CHANNELS.chooseWorkspace, (event) =>
     run(async () => {
-      const window = getWindow()
+      const host = hostOf(hosts, event)
+      if (host.kind !== 'main') {
+        throw new RelayError('project_window', 'Project 窗口的工作文件夹在打开时已固定')
+      }
+      const window = host.window
       const options = {
         title: '选择工作目录',
         properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
@@ -120,136 +139,171 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.startSession, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.openProjectWindow, (event) =>
     run(async () => {
+      const host = hostOf(hosts, event)
+      if (host.kind !== 'main') {
+        throw new RelayError('project_window', '只有主窗口可以打开 Project')
+      }
+      const options = {
+        title: '选择 Project 工作文件夹',
+        properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
+      }
+      const result = await dialog.showOpenDialog(host.window, options)
+      if (result.canceled || !result.filePaths[0]) return false
+      hosts.openProject(result.filePaths[0])
+      return true
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.startSession, (event, raw: unknown) =>
+    run(async () => {
+      const host = hostOf(hosts, event)
       const options = raw === undefined ? {} : startSessionSchema.parse(raw)
-      return sessions.startSession(options)
+      return host.sessions.startSession(options)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.stopSession, () =>
+  ipcMain.handle(IPC_CHANNELS.stopSession, (event) =>
     run(async () => {
-      await sessions.stopCurrent()
+      await hostOf(hosts, event).sessions.stopCurrent()
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.send, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.send, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { text } = sendSchema.parse(raw)
-      sessions.send(text)
+      host.sessions.send(text)
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.interrupt, () =>
+  ipcMain.handle(IPC_CHANNELS.interrupt, (event) =>
     run(async () => {
-      await sessions.interrupt()
+      await hostOf(hosts, event).sessions.interrupt()
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.setPermissionMode, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.setPermissionMode, (event, raw: unknown) =>
     run(async () => {
+      const host = hostOf(hosts, event)
       const { mode } = setPermissionModeSchema.parse(raw)
-      return sessions.setPermissionMode(mode)
+      return host.sessions.setPermissionMode(mode)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.permissionResponse, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.permissionResponse, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const decision = permissionDecisionSchema.parse(raw)
-      sessions.respondPermission(decision)
+      host.sessions.respondPermission(decision)
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.listSessions, () => run(() => sessions.getSessions()))
+  ipcMain.handle(IPC_CHANNELS.listSessions, (event) =>
+    run(() => hostOf(hosts, event).sessions.getSessions())
+  )
 
-  ipcMain.handle(IPC_CHANNELS.loadSession, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.loadSession, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { sessionId } = sessionIdSchema.parse(raw)
-      return sessions.loadSession(sessionId)
+      return host.sessions.loadSession(sessionId)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.renameSession, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.renameSession, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { sessionId, title } = renameSessionSchema.parse(raw)
-      return sessions.renameSession(sessionId, title)
+      return host.sessions.renameSession(sessionId, title)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.deleteSession, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.deleteSession, (event, raw: unknown) =>
     run(async () => {
+      const host = hostOf(hosts, event)
       const { sessionId } = sessionIdSchema.parse(raw)
-      await sessions.deleteSession(sessionId)
+      await host.sessions.deleteSession(sessionId)
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.readWorkspaceConfig, (_event, raw: unknown) =>
-    run(() => config.readWorkspaceConfig(parseCwd(config, raw)))
+  ipcMain.handle(IPC_CHANNELS.readWorkspaceConfig, (event, raw: unknown) =>
+    run(() => {
+      const host = hostOf(hosts, event)
+      return config.readWorkspaceConfig(parseCwd(host, config, raw))
+    })
   )
 
-  ipcMain.handle(IPC_CHANNELS.writeWorkspaceConfig, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.writeWorkspaceConfig, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { cwd, values } = workspaceConfigSchema.parse(raw)
-      return config.writeWorkspaceConfig(cwd ?? config.getSettings().workspace, values)
+      return config.writeWorkspaceConfig(scopedCwd(host, config, cwd), values)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.clearWorkspaceConfig, (_event, raw: unknown) =>
-    run(() => config.clearWorkspaceConfig(parseCwd(config, raw)))
+  ipcMain.handle(IPC_CHANNELS.clearWorkspaceConfig, (event, raw: unknown) =>
+    run(() => {
+      const host = hostOf(hosts, event)
+      return config.clearWorkspaceConfig(parseCwd(host, config, raw))
+    })
   )
 
-  ipcMain.handle(IPC_CHANNELS.removeAllowedTool, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.removeAllowedTool, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { cwd, rule } = removeAllowedToolSchema.parse(raw)
-      return config.removeWorkspaceAllowedTool(
-        cwd ?? config.getSettings().workspace,
-        rule
-      )
+      return config.removeWorkspaceAllowedTool(scopedCwd(host, config, cwd), rule)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.requestHandoff, () =>
-    run(() => sessions.requestHandoff())
+  ipcMain.handle(IPC_CHANNELS.requestHandoff, (event) =>
+    run(() => hostOf(hosts, event).sessions.requestHandoff())
   )
 
-  ipcMain.handle(IPC_CHANNELS.listHandoffs, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.listHandoffs, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { sessionId } = raw === undefined ? {} : listHandoffsSchema.parse(raw)
-      return sessions.listHandoffs(sessionId)
+      return host.sessions.listHandoffs(sessionId)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.updateHandoff, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.updateHandoff, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { handoffId, markdown } = updateHandoffSchema.parse(raw)
-      return sessions.updateHandoff(handoffId, markdown)
+      return host.sessions.updateHandoff(handoffId, markdown)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.deleteHandoff, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.deleteHandoff, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { handoffId } = handoffIdSchema.parse(raw)
-      sessions.deleteHandoff(handoffId)
+      host.sessions.deleteHandoff(handoffId)
       return undefined
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.acceptHandoff, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.acceptHandoff, (event, raw: unknown) =>
     run(() => {
+      const host = hostOf(hosts, event)
       const { handoffId, markdown } = acceptHandoffSchema.parse(raw)
-      return sessions.acceptHandoff(handoffId, markdown)
+      return host.sessions.acceptHandoff(handoffId, markdown)
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.windowControl, (_event, raw: unknown) =>
+  ipcMain.handle(IPC_CHANNELS.windowControl, (event, raw: unknown) =>
     run(() => {
       const { action } = windowControlSchema.parse(raw)
-      const window = getWindow()
+      const window = BrowserWindow.fromWebContents(event.sender)
       if (!window) return undefined
       if (action === 'minimize') window.minimize()
       else if (action === 'close') window.close()

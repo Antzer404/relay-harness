@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRelayStore } from '../store/useRelayStore'
 import { baseName, relativeTime } from '../lib/format'
 import { IconPencil, IconPlus, IconTrash } from './icons'
+import { TeamPanel } from './TeamPanel'
 
 export function Sidebar(): React.JSX.Element {
   const open = useRelayStore((state) => state.sidebarOpen)
@@ -129,6 +130,8 @@ export function Sidebar(): React.JSX.Element {
             })
           )}
         </nav>
+
+        <TeamPanel />
 
         <div className="rly-sidebar-foot">
           {current ? (

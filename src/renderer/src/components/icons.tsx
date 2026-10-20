@@ -37,6 +37,30 @@ export function IconFolder({ size = 16 }: IconProps): React.JSX.Element {
   )
 }
 
+export function IconProject({ size = 16 }: IconProps): React.JSX.Element {
+  return base(
+    size,
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
+    </>
+  )
+}
+
+export function IconUsers({ size = 16 }: IconProps): React.JSX.Element {
+  return base(
+    size,
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6" />
+      <path d="M16 5.4a3 3 0 0 1 0 5.6" />
+      <path d="M17.5 14.6c1.7.6 2.8 2.1 3.1 4.4" />
+    </>
+  )
+}
+
 export function IconGear({ size = 18 }: IconProps): React.JSX.Element {
   return base(
     size,

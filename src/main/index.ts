@@ -1,25 +1,10 @@
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import { ConfigService } from './services/config-service'
-import { SessionManager } from './services/session-manager'
+import { HostRegistry } from './hosts'
 import { registerIpc } from './ipc'
-import { createMainWindow } from './window'
 import { logGpuStatus } from './perf'
-import { IPC_CHANNELS } from '@shared/ipc'
 
-let mainWindow: BrowserWindow | null = null
-let sessions: SessionManager | null = null
-
-function wireWindow(window: BrowserWindow): void {
-  window.on('closed', () => {
-    sessions?.denyPendingPermissions('窗口已关闭，操作已自动拒绝。')
-    void sessions?.dispose()
-    if (mainWindow === window) mainWindow = null
-  })
-
-  window.webContents.on('render-process-gone', () => {
-    sessions?.denyPendingPermissions('渲染进程已崩溃，操作已自动拒绝。')
-  })
-}
+let registry: HostRegistry | null = null
 
 // Some Windows machines (VMs, remote sessions, locked-down GPU drivers) cannot
 // launch Chromium's GPU process; this console UI does not need hardware
@@ -47,9 +32,10 @@ if (!gotLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+    const target = registry?.getMain()?.window ?? registry?.all()[0]?.window
+    if (!target || target.isDestroyed()) return
+    if (target.isMinimized()) target.restore()
+    target.focus()
   })
 
   app.whenReady().then(() => {
@@ -58,30 +44,20 @@ if (!gotLock) {
 
     const userDataDir = app.getPath('userData')
     const config = new ConfigService(userDataDir)
-    sessions = new SessionManager(config, {
+    registry = new HostRegistry({
       isPackaged: app.isPackaged,
       userDataDir,
-      emit: (event) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send(IPC_CHANNELS.event, event)
-        }
-      }
+      config
     })
-
-    mainWindow = createMainWindow(config)
-    wireWindow(mainWindow)
+    registry.createMain()
     registerIpc({
       appVersion: app.getVersion(),
       config,
-      sessions,
-      getWindow: () => mainWindow
+      hosts: registry
     })
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createMainWindow(config)
-        wireWindow(mainWindow)
-      }
+      if (!registry?.getMain()) registry?.createMain()
     })
   })
 
@@ -90,6 +66,6 @@ if (!gotLock) {
   })
 
   app.on('before-quit', () => {
-    void sessions?.dispose()
+    void registry?.disposeAll()
   })
 }

@@ -8,6 +8,7 @@ import {
   type HarnessEvent,
   type IpcResult,
   type PermissionDecisionKind,
+  type ProjectWindowInfo,
   type RelayEvent,
   type RelaySettings,
   type SessionPhase,
@@ -17,8 +18,15 @@ import {
   type ThemeMode,
   type UsageSnapshot,
   type VisiblePermissionMode,
+  type WindowKind,
   type WorkspaceConfigValues
 } from '@shared/events'
+import {
+  EMPTY_TEAM,
+  reduceTeam,
+  replayTeam,
+  type TeamState
+} from '@shared/agents'
 import type {
   ErrorItem,
   NoticeItem,
@@ -45,7 +53,7 @@ export type {
   UserItem
 }
 
-export type RightDrawer = 'settings' | 'trace' | null
+export type RightDrawer = 'settings' | 'trace' | 'agent' | null
 
 export type HandoffStatus = 'idle' | 'generating' | 'ready' | 'error'
 
@@ -60,11 +68,16 @@ export interface RelayState {
   bootstrapped: boolean
   fatal: string | null
   bootstrap: BootstrapState | null
+  windowKind: WindowKind
+  project: ProjectWindowInfo | null
   sessions: SessionRecord[]
   current: SessionSummary | null
   activeId: string | null
   phase: SessionPhase
   items: TimelineItem[]
+  /** Project workers rebuilt from `agent_*` events. */
+  team: TeamState
+  activeAgentId: string | null
   trace: RelayEvent[]
   /** Latest context/cost snapshot; null until the first turn reports usage. */
   usage: UsageSnapshot | null
@@ -107,6 +120,8 @@ export interface RelayState {
     suggestionIndex?: number
   ) => Promise<void>
   openDrawer: (drawer: RightDrawer) => void
+  openAgent: (agentId: string) => void
+  openProject: () => Promise<void>
   setThemeMode: (mode: ThemeMode) => Promise<void>
   setDevMode: (enabled: boolean) => Promise<void>
   setSidebarOpen: (open: boolean) => void
@@ -174,8 +189,7 @@ function closeStreams(items: TimelineItem[], toolMessage: string): TimelineItem[
 }
 
 /** Applies one runtime event to the timeline; used for live and replayed events. */
-function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): TimelineItem[] {
-  switch (event.type) {
+function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): TimelineItem[] {  switch (event.type) {
     case 'user_message':
       return addItem(items, {
         kind: 'user',
@@ -295,6 +309,8 @@ function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): Ti
         ...(event.decisionReason ? { decisionReason: event.decisionReason } : {}),
         ...(event.title ? { title: event.title } : {}),
         ...(event.blockedPath ? { blockedPath: event.blockedPath } : {}),
+        ...(event.agentId ? { agentId: event.agentId } : {}),
+        ...(event.agentName ? { agentName: event.agentName } : {}),
         status: 'pending',
         at: ts
       })
@@ -367,7 +383,7 @@ function modeFromEvents(
 
 // ------------------------------------------------------------------- reducer
 
-function applyEvent(state: RelayState, envelope: RelayEvent): RelayState {
+function applyEventCore(state: RelayState, envelope: RelayEvent): RelayState {
   const event = envelope.event
   const trace = [...state.trace, envelope].slice(-300)
   const items = reduceItems(state.items, event, envelope.ts)
@@ -414,6 +430,13 @@ function applyEvent(state: RelayState, envelope: RelayEvent): RelayState {
   }
 }
 
+/** Keeps the team panel in sync without teaching the timeline reducer about it. */
+function applyEvent(state: RelayState, envelope: RelayEvent): RelayState {
+  const team = reduceTeam(state.team, envelope.event, envelope.ts)
+  const next = applyEventCore(state, envelope)
+  return next.team === team ? next : { ...next, team }
+}
+
 function errorItem(message: string): ErrorItem {
   return {
     kind: 'error',
@@ -446,11 +469,15 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   bootstrapped: false,
   fatal: null,
   bootstrap: null,
+  windowKind: 'main',
+  project: null,
   sessions: [],
   current: null,
   activeId: null,
   phase: 'idle',
   items: [],
+  team: EMPTY_TEAM,
+  activeAgentId: null,
   trace: [],
   usage: null,
   permissionMode: 'default',
@@ -480,6 +507,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     set({
       bootstrapped: true,
       bootstrap,
+      windowKind: bootstrap.windowKind,
+      project: bootstrap.project,
       sessions: bootstrap.sessions,
       current: bootstrap.session,
       activeId: bootstrap.session?.id ?? null,
@@ -513,6 +542,7 @@ export const useRelayStore = create<RelayState>((set, get) => ({
         const replayed = replayItems(detail.data.events)
         set({
           items: notice ? [notice, ...replayed] : replayed,
+          team: replayTeam(detail.data.events),
           phase: 'idle',
           permissionMode: modeFromEvents(
             detail.data.events,
@@ -548,6 +578,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     }
     set((state) => ({
       bootstrap: result.data,
+      windowKind: result.data.windowKind,
+      project: result.data.project,
       sessions: result.data.sessions,
       themeMode: result.data.settings.theme,
       devMode: result.data.settings.devMode,
@@ -676,6 +708,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       current: result.data,
       activeId: result.data.id,
       items: [],
+      team: EMPTY_TEAM,
+      activeAgentId: null,
       trace: [],
       usage: null,
       permissionMode: get().bootstrap?.effective.permissionMode ?? 'default',
@@ -711,6 +745,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       activeId: sessionId,
       current: null,
       items: notice ? [notice, ...replay] : replay,
+      team: replayTeam(detail.data.events),
+      activeAgentId: null,
       trace: [],
       usage: null,
       permissionMode: modeFromEvents(
@@ -766,6 +802,8 @@ export const useRelayStore = create<RelayState>((set, get) => ({
             activeId: null,
             current: null,
             items: [],
+            team: EMPTY_TEAM,
+            activeAgentId: null,
             trace: [],
             usage: null,
             permissionMode: get().bootstrap?.effective.permissionMode ?? 'default',
@@ -795,6 +833,15 @@ export const useRelayStore = create<RelayState>((set, get) => ({
   },
 
   openDrawer: (drawer) => set({ drawer }),
+
+  openAgent: (agentId) => set({ activeAgentId: agentId, drawer: 'agent' }),
+
+  openProject: async () => {
+    const result = await window.relay.openProjectWindow()
+    if (!result.ok) {
+      set((s) => ({ items: addItem(s.items, errorItem(result.error.message)) }))
+    }
+  },
 
   setThemeMode: async (mode) => {
     set({ themeMode: mode })

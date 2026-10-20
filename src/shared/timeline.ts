@@ -53,6 +53,9 @@ export interface PermissionItem {
   decisionReason?: string
   title?: string
   blockedPath?: string
+  /** Project worker that raised the request, if any. */
+  agentId?: string
+  agentName?: string
   status: 'pending' | 'allowed' | 'denied'
   at: number
 }

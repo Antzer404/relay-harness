@@ -333,7 +333,8 @@ describe('MemoryManager', () => {
       updatedAt: 1,
       cliSessionId: null,
       eventCount: events.length,
-      handoffFrom: null
+      handoffFrom: null,
+      projectMode: false
     }
     const manager = new MemoryManager({
       userDataDir: dir,

@@ -202,11 +202,12 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       stderr: []
     }
 
-    const canUseTool: CanUseTool = async (toolName, toolInput, { signal, suggestions, decisionReason, title, blockedPath, toolUseID }) => {
+    const canUseTool: CanUseTool = async (toolName, toolInput, { signal, suggestions, decisionReason, title, blockedPath, toolUseID, agentID }) => {
       if (state.closed) {
         return { behavior: 'deny', message: '会话已关闭' }
       }
       const requestId = randomUUID()
+      const agentName = agentID ? state.normalizer.agentName(agentID) : null
       // "Always allow" is scoped to this session: never let a suggestion write
       // global user settings from inside Relay.
       const rawSuggestions = (suggestions ?? []).map((suggestion) => ({
@@ -221,7 +222,9 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         suggestions: rawSuggestions.map(describeSuggestion),
         ...(decisionReason ? { decisionReason } : {}),
         ...(title ? { title } : {}),
-        ...(blockedPath ? { blockedPath } : {})
+        ...(blockedPath ? { blockedPath } : {}),
+        ...(agentID ? { agentId: agentID } : {}),
+        ...(agentName ? { agentName } : {})
       })
 
       return new Promise<PermissionResult>((resolve) => {
@@ -235,10 +238,13 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       })
     }
 
-    state.normalizer = new EventNormalizer((event) => {
-      if (event.type === 'usage') state.usage = event.usage
-      this.emit(options.sessionId, event)
-    })
+    state.normalizer = new EventNormalizer(
+      (event) => {
+        if (event.type === 'usage') state.usage = event.usage
+        this.emit(options.sessionId, event)
+      },
+      { teamMode: options.teamMode === true }
+    )
 
     const queryOptions = {
       cwd: options.cwd,
@@ -254,6 +260,12 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       settingSources: ['project' as const],
       ...(options.allowedTools && options.allowedTools.length > 0
         ? { allowedTools: options.allowedTools }
+        : {}),
+      ...(options.agents && Object.keys(options.agents).length > 0
+        ? { agents: options.agents }
+        : {}),
+      ...(options.teamMode
+        ? { forwardSubagentText: true, agentProgressSummaries: true }
         : {}),
       env: buildEnv(options),
       stderr: (data: string) => {

@@ -1229,6 +1229,16 @@ textarea {
   color: var(--text-2);
 }
 
+.rly-permission-agent {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 117, 42, 0.35);
+  background: rgba(201, 117, 42, 0.1);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
 .rly-permission-lead {
   margin: 0 0 8px;
   font-size: 13px;
@@ -2835,4 +2845,369 @@ html[data-lowfx='1'] .rly-mode-pop {
 .rly-handoff-actions {
   display: flex;
   gap: 8px;
+}
+
+/* ------------------------------------------------------- project / team */
+
+.rly-workspace-btn.is-static {
+  cursor: default;
+}
+
+.rly-workspace-btn.is-static:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.rly-project-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 117, 42, 0.35);
+  background: rgba(201, 117, 42, 0.12);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rly-project-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  border-color: rgba(201, 117, 42, 0.3);
+  background: rgba(201, 117, 42, 0.09);
+}
+
+.rly-team {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+  max-height: 44%;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.rly-team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 6px;
+}
+
+.rly-team-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.rly-team-count {
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-team-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px 6px;
+}
+
+.rly-team-tab {
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  transition: background 0.13s ease, color 0.13s ease;
+}
+
+.rly-team-tab.is-active {
+  background: var(--surface-strong);
+  color: var(--text);
+  box-shadow: var(--shadow-1);
+}
+
+.rly-team-tab em {
+  font-style: normal;
+  margin-left: 4px;
+  font-size: 9.5px;
+  color: var(--accent);
+}
+
+.rly-team-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 4px 2px;
+}
+
+.rly-team-member {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 9px;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+
+button.rly-team-member:hover {
+  background: var(--surface-soft);
+  border-color: var(--border);
+}
+
+.rly-team-member.is-idle {
+  opacity: 0.72;
+}
+
+.rly-team-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.rly-team-member.is-running .rly-team-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201, 117, 42, 0.16);
+}
+
+.rly-team-member.is-done .rly-team-dot {
+  background: var(--success);
+}
+
+.rly-team-member.is-failed .rly-team-dot {
+  background: var(--danger);
+}
+
+.rly-team-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rly-team-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.rly-team-name em {
+  font-style: normal;
+  font-size: 9.5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+.rly-team-task {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 10.8px;
+  line-height: 1.45;
+  color: var(--text-3);
+  word-break: break-word;
+}
+
+.rly-team-usage {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  font-size: 9.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-team-error {
+  padding: 4px 8px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--danger);
+}
+
+.rly-team-empty {
+  padding: 6px 8px 10px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text-3);
+}
+
+.rly-team-feed {
+  gap: 0;
+}
+
+.rly-team-feed-item {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  border-left: 2px solid transparent;
+  font-size: 10.8px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.rly-team-feed-item.is-started {
+  border-left-color: var(--accent);
+}
+
+.rly-team-feed-item.is-finished {
+  border-left-color: var(--success);
+}
+
+.rly-team-feed-time {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-team-feed-text {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.rly-team-feed-text em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+/* member drawer */
+
+.rly-agent-drawer {
+  width: min(540px, 94vw);
+}
+
+.rly-agent-drawer .rly-trace-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rly-agent-status {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+.rly-agent-status.is-running {
+  color: var(--accent);
+  border-color: rgba(201, 117, 42, 0.35);
+}
+
+.rly-agent-status.is-done {
+  color: var(--success);
+}
+
+.rly-agent-status.is-failed {
+  color: var(--danger);
+}
+
+.rly-agent-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 20px 24px;
+}
+
+.rly-agent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.rly-agent-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 12.5px;
+}
+
+.rly-agent-task summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.rly-agent-task pre {
+  margin: 6px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.rly-agent-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rly-agent-message {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+
+.rly-agent-message-time {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rly-agent-message-tool code {
+  font-size: 10.5px;
+  color: var(--accent);
+}
+
+.rly-agent-message-tool pre {
+  margin: 4px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.rly-agent-message.is-error .rly-agent-message-tool code {
+  color: var(--danger);
 }

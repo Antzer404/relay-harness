@@ -2,7 +2,7 @@
 
 桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
 
-> 状态：**M1 核心闭环完成，M2 交接链与双轨记忆已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接与双轨长期记忆。详见 [M0 验证报告](docs/m0-verification.md)。
+> 状态：**M2 已完成，Project 模式（多智能体）MVP 已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接、双轨长期记忆与 Project 团队窗口。详见 [M0 验证报告](docs/m0-verification.md)。
 
 ## 快速开始
 
@@ -30,6 +30,8 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 
 首次启动点击右上角齿轮打开设置，在 **API Key** 页填入 DeepSeek 密钥（`sk-...`），然后在左侧点「新会话」。模型与思考强度在设置里调整；权限模式可直接用输入框左下的胶囊按钮即时切换（仅作用于当前会话），也可以在每个工作目录放一份 `.relay/settings.json` 覆盖应用默认值。
 
+需要团队协作时，点顶栏的「Project」并选择工作文件夹：Relay 会为新目录打开一个独立窗口，以 Project 模式运行（Leader + 架构 / 后端 / 前端 / 测试四个 worker）。在 `.relay/agents.json` 中可替换阵容（id、名称、描述、系统提示、可选工具集）。主窗口与 Project 窗口的会话互相隔离，记忆与交接记录按目录共享。
+
 ## 当前能力（M0）
 
 - electron-vite 单包分层：`src/main`、`src/preload`、`src/renderer`、`src/shared`。
@@ -46,11 +48,12 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 - 上下文填充率：开发者模式的事件轨迹抽屉顶部显示最近一轮的 context 占用（tokens、窗口、百分比、输入输出、缓存读写与估算成本）。
 - 跨会话交接：填充率达到阈值（默认 70%，低于 CLI 自动压缩的 75%）时输入框上方出现提示；点「交接」后用当前会话的持久事件生成结构化交接文档（目标 / 已完成 / 关键决策 / 涉及文件 / 待办 / 未解决），可编辑、重生成，确认后新建会话并把文档注入其系统提示；会话列表用「接力」标记来源，交接链可连续延长。生成走独立的模型调用，不占用当前会话上下文。
 - 双轨长期记忆：每个回合结束后 2 分钟去抖，用当前会话模型把增量对话整理成「项目记忆 + 用户画像」，以 `add / update / delete` 增量写入 `userData/memory`（JSON，按会话游标只处理未整理的事件）；工作区同时生成只读镜像 `.relay/memory.md`。新会话启动时按约 2000 tokens 预算注入系统提示，整理结果在时间线留一条通知。设置 → 通用可查看记忆目录与条数；直接编辑 JSON 即可修改，`enabled: false` 可停用。
+- Project 模式（多智能体）：主窗口顶栏点「Project」选择工作文件夹，会打开一个独立窗口并绑定该目录。Leader 仍是主会话，通过 SDK 原生子代理派发任务（默认阵容：架构 / 后端 / 前端 / 测试，可用 `.relay/agents.json` 覆盖）；侧栏底部「团队」区可切换成员与频道，查看任务单、进度摘要、逐成员 token 与完整过程；worker 的思维链与工具调用不会混入主时间线，权限审批卡会标注请求来自哪个 agent。worker 继承会话权限模式。
 - 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
 - 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
 - 打包：Windows NSIS/portable、macOS dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
 
-尚未实现（M3）：Cowork、签名公证与自动更新。
+尚未实现（M3）：安装包签名公证与 Defender 误报处理、E2E 冒烟、Cowork、自动更新。
 
 ## 目录
 
@@ -59,8 +62,9 @@ src/
   shared/        # 事件、IPC、设置类型与 zod schema（无 Electron/Node 依赖）
   main/
     runtime/     # RuntimeAdapter、ClaudeAgentRuntime、事件归一化、原生 CLI 路径
-    services/    # 配置/密钥（safeStorage）、会话生命周期、交接文档、双轨记忆
-    ipc.ts       # 类型化 IPC 与入参校验
+    services/    # 配置/密钥（safeStorage）、会话生命周期、交接文档、双轨记忆、项目阵容
+    hosts.ts     # 主窗口 / Project 窗口的会话宿主与共享存储
+    ipc.ts       # 类型化 IPC 与入参校验（按窗口路由）
     window.ts
     index.ts
   preload/       # contextBridge 暴露最小 window.relay

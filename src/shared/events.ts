@@ -60,6 +60,14 @@ export interface FileDiff {
   truncated: boolean
 }
 
+export type AgentStatus = 'running' | 'done' | 'failed' | 'stopped'
+
+export interface AgentUsageSummary {
+  totalTokens: number
+  toolUses: number
+  durationMs: number
+}
+
 export type HarnessEvent =
   | {
       type: 'session_started'
@@ -106,6 +114,9 @@ export type HarnessEvent =
       decisionReason?: string
       title?: string
       blockedPath?: string
+      /** Present when a Project worker (subagent) raised the request. */
+      agentId?: string
+      agentName?: string
     }
   | { type: 'usage'; usage: UsageSnapshot }
   | {
@@ -123,6 +134,43 @@ export type HarnessEvent =
     }
   | { type: 'error'; code: string; message: string; retryable: boolean }
   | { type: 'memory_note'; message: string }
+  | {
+      type: 'agent_started'
+      agentId: string
+      name: string
+      description: string
+      prompt: string | null
+      backgrounded: boolean
+      startedAt: number
+    }
+  | {
+      type: 'agent_progress'
+      agentId: string
+      name: string
+      summary?: string
+      lastToolName?: string
+      usage?: AgentUsageSummary
+    }
+  | {
+      type: 'agent_finished'
+      agentId: string
+      name: string
+      status: AgentStatus
+      summary: string | null
+      usage: AgentUsageSummary | null
+      finishedAt: number
+    }
+  | {
+      /** One completed block from a worker's transcript. */
+      type: 'agent_message'
+      agentId: string
+      name: string
+      kind: 'text' | 'tool' | 'result'
+      text: string
+      toolName?: string
+      isError?: boolean
+      at: number
+    }
 
 /** Envelope added by the main process. `seq` is monotonic per app run. */
 export interface RelayEvent {
@@ -246,6 +294,22 @@ export interface MemoryEntry {
 }
 
 /** Paths and counts shown in settings; there is no in-app memory editor. */
+export type WindowKind = 'main' | 'project'
+
+export interface ProjectAgentView {
+  id: string
+  label: string
+  description: string
+}
+
+/** Shown in the project window's bootstrap; null in the main window. */
+export interface ProjectWindowInfo {
+  folder: string
+  agents: ProjectAgentView[]
+  /** Set when `.relay/agents.json` exists but could not be used. */
+  rosterError: string | null
+}
+
 export interface MemoryInfo {
   /** `userData/memory` — user.json plus projects/<key>.json. */
   dir: string
@@ -309,6 +373,8 @@ export interface SessionRecord {
   eventCount: number
   /** Source session when this one was created from a handoff document. */
   handoffFrom: string | null
+  /** Created in a Project window; hidden from the main window's session list. */
+  projectMode: boolean
 }
 
 export interface SessionDetail {
@@ -339,6 +405,9 @@ export interface BootstrapState {
   sessions: SessionRecord[]
   /** Chromium has no GPU compositing; the renderer drops blur-heavy effects. */
   lowEffects: boolean
+  /** main: the normal chat window; project: a team window for one folder. */
+  windowKind: WindowKind
+  project: ProjectWindowInfo | null
   memory: MemoryInfo
   sdk: {
     version: string

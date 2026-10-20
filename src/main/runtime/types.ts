@@ -1,3 +1,4 @@
+import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk'
 import type {
   EffortLevel,
   HarnessEvent,
@@ -16,6 +17,10 @@ export interface StartSessionOptions {
   allowedTools?: string[]
   /** Appended to the preset `claude_code` system prompt. */
   systemPromptAppend?: string
+  /** Project mode: workers exposed through the Agent tool. */
+  agents?: Record<string, AgentDefinition>
+  /** Project mode: forward worker transcripts and emit `agent_*` events. */
+  teamMode?: boolean
   baseUrl: string
   apiKey: string
   claudeConfigDir: string

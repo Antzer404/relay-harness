@@ -7,6 +7,7 @@ import { Composer } from './components/Composer'
 import { SettingsDialog } from './components/SettingsDialog'
 import { TraceDrawer } from './components/TraceDrawer'
 import { HandoffDialog } from './components/HandoffDialog'
+import { AgentDrawer } from './components/AgentDrawer'
 
 export function App(): React.JSX.Element {
   const init = useRelayStore((state) => state.init)
@@ -95,6 +96,7 @@ export function App(): React.JSX.Element {
 
       <SettingsDialog />
       <TraceDrawer />
+      <AgentDrawer />
       <HandoffDialog />
     </div>
   )

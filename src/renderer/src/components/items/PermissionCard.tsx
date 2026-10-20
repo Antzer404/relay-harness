@@ -11,7 +11,12 @@ const MODE_APPROVAL_LABEL: Record<string, string> = {
 
 export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.Element {
   const respond = useRelayStore((state) => state.respondPermission)
+  const project = useRelayStore((state) => state.project)
   const [showParams, toggleParams] = useItemOpen(permissionParamsKey(item.id), false)
+
+  const agentLabel = item.agentName
+    ? (project?.agents.find((agent) => agent.id === item.agentName)?.label ?? item.agentName)
+    : null
 
   // ExitPlanMode-style approvals offer "switch to mode X" suggestions; each
   // becomes its own button so the user picks the post-approval mode.
@@ -33,6 +38,7 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
               ? '已允许'
               : '已拒绝'}
         </span>
+        {agentLabel ? <span className="rly-permission-agent">{agentLabel} agent</span> : null}
         <span className="rly-permission-tool">{item.toolName}</span>
       </header>
 

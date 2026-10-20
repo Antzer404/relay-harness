@@ -1,7 +1,7 @@
 # 多智能体（Project 模式）可行性评估
 
 > 2026-10-20 · 基于 `@anthropic-ai/claude-agent-sdk@0.3.303` 的类型定义与 Relay 现状
-> 状态：评估完成，暂不实现
+> 状态：**MVP 已实现（2026-10-20）**，实现取舍见文末「实施修订」
 
 ## 1. 结论
 
@@ -111,3 +111,14 @@
 ## 9. 开始前必须先做的一件事
 
 给现有 normalizer 加归属分流（子代理事件不再冒充主线程工具）。这是独立的小修复，4–6 小时，也是多智能体的地基。
+
+## 10. 实施修订（2026-10-20，MVP 落地）
+
+- **开关形态**：用户选择「额外加一个按钮 → 新建窗口 → 定位工作文件夹」。主窗口顶栏新增「Project」按钮，弹出原生目录选择；选定后由 `HostRegistry` 打开独立的 `BrowserWindow` 并绑定该目录，同目录再次打开会聚焦已有窗口。主窗口与 Project 窗口各自持有一个 `SessionManager`，共享 `SessionStore` / `HandoffStore` / `MemoryStore`；IPC 按 `webContents.id` 路由，事件只发往所属窗口。
+- **会话隔离**：`SessionRecord` 增加 `projectMode`。主窗口只列普通会话，Project 窗口只列 `projectMode=true` 且 `cwd` 等于其绑定目录的会话；跨窗口的 load/rename/delete/handoff 一律拒绝。Project 窗口的 cwd 固定为打开时选择的目录（`workspaceOverride`）。
+- **阵容**：默认「架构 / 后端 / 前端 / 测试」四名 worker；`.relay/agents.json`（zod 校验，1–6 名）可整体替换阵容，字段为 id / label / description / prompt / tools / model。worker 未指定模型时走 `CLAUDE_CODE_SUBAGENT_MODEL=deepseek-flash`，leader 使用会话模型。
+- **Leader 纪律**：`projectLeaderPrompt` 拼进 `systemPromptAppend`（顺序：长期记忆 → 交接文档 → 团队纪律 → 工作区追加）。要求先给计划（分步、负责人、验收）再直接派发，不阻塞等待用户确认。
+- **权限**：worker 继承会话权限模式；`permission_request` 增加 `agentId` / `agentName`（normalizer 由 `task_started` 与子代理帧维护 task_id → subagent_type 映射），审批卡显示「后端 agent」等归属。危险命令仍按全局策略审批。
+- **事件**：新增耐久事件 `agent_started` / `agent_progress` / `agent_finished` / `agent_message`。`task_started` / `task_progress` / `task_notification` 映射为生命周期事件；子代理的完整 assistant/user 帧只提炼 text / tool / result（丢弃 thinking 与 stream 增量，文本 4k、工具 300、结果 800 字符上限），不再进入 leader 时间线。事件落 JSONL，回放由纯函数 `reduceTeam` 重建团队状态。
+- **UI**：侧栏底部「团队」区（成员 / 频道两个页签），成员卡显示状态、当前摘要与 token；点击成员打开右侧抽屉查看任务单与完整过程。主时间线仍只显示 leader 产出；顶栏显示 `Project` 徽标与绑定目录；设置页显示该目录且不允许改选。
+- **未纳入 MVP**：worktree 隔离、单任务停止、worker 独立模型/权限档、后台代理常驻、agent 间直接对话、真实 key 下的编排质量与并发成本压测（需在 Windows 用 DeepSeek 实测）。

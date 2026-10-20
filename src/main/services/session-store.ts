@@ -36,6 +36,10 @@ function isDurable(event: HarnessEvent): boolean {
     case 'error':
     case 'memory_note':
     case 'turn_end':
+    case 'agent_started':
+    case 'agent_progress':
+    case 'agent_finished':
+    case 'agent_message':
       return true
     default:
       return false
@@ -60,7 +64,8 @@ function parseRecord(value: unknown): SessionRecord | null {
     updatedAt: typeof updatedAt === 'number' ? updatedAt : Date.now(),
     cliSessionId: typeof cliSessionId === 'string' ? cliSessionId : null,
     eventCount: typeof eventCount === 'number' ? eventCount : 0,
-    handoffFrom: typeof handoffFrom === 'string' ? handoffFrom : null
+    handoffFrom: typeof handoffFrom === 'string' ? handoffFrom : null,
+    projectMode: value.projectMode === true
   }
 }
 
@@ -112,7 +117,8 @@ export class SessionStore {
           updatedAt: stats.mtimeMs,
           cliSessionId: null,
           eventCount: 0,
-          handoffFrom: null
+          handoffFrom: null,
+          projectMode: false
         })
       } catch {
         // Ignore unreadable files.

@@ -5,6 +5,7 @@ import {
   IconGear,
   IconMaximize,
   IconMinimize,
+  IconProject,
   IconRestore,
   IconSidebar
 } from './icons'
@@ -62,10 +63,14 @@ export function TopBar(): React.JSX.Element {
   const devMode = useRelayStore((state) => state.devMode)
   const openDrawer = useRelayStore((state) => state.openDrawer)
   const chooseWorkspace = useRelayStore((state) => state.chooseWorkspace)
+  const windowKind = useRelayStore((state) => state.windowKind)
+  const project = useRelayStore((state) => state.project)
+  const openProject = useRelayStore((state) => state.openProject)
   const maximized = useRelayStore((state) => state.maximized)
 
   const platform = bootstrap?.platform ?? 'unknown'
-  const workspace = bootstrap?.settings.workspace
+  const workspace =
+    windowKind === 'project' ? project?.folder : bootstrap?.settings.workspace
   const activeTitle = sessions.find((record) => record.id === activeId)?.title
 
   return (
@@ -85,15 +90,25 @@ export function TopBar(): React.JSX.Element {
       </div>
 
       <div className="rly-crumbs">
-        <button
-          type="button"
-          className="rly-workspace-btn"
-          title={workspace ?? '选择工作目录'}
-          onClick={() => void chooseWorkspace()}
-        >
-          <IconFolder />
-          <span>{baseName(workspace)}</span>
-        </button>
+        {windowKind === 'project' ? (
+          <span className="rly-workspace-btn is-static" title={workspace ?? ''}>
+            <IconFolder />
+            <span>{baseName(workspace)}</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="rly-workspace-btn"
+            title={workspace ?? '选择工作目录'}
+            onClick={() => void chooseWorkspace()}
+          >
+            <IconFolder />
+            <span>{baseName(workspace)}</span>
+          </button>
+        )}
+        {windowKind === 'project' ? (
+          <span className="rly-project-badge">Project</span>
+        ) : null}
         {activeTitle ? (
           <>
             <span className="rly-crumb-sep">/</span>
@@ -109,6 +124,17 @@ export function TopBar(): React.JSX.Element {
           <span className="rly-phase-dot" aria-hidden="true" />
           <span>{PHASE_LABEL[phase]}</span>
         </span>
+        {windowKind === 'main' ? (
+          <button
+            type="button"
+            className="rly-ghost-btn rly-project-btn"
+            title="打开 Project 窗口"
+            onClick={() => void openProject()}
+          >
+            <IconProject size={14} />
+            Project
+          </button>
+        ) : null}
         {devMode ? (
           <button
             type="button"

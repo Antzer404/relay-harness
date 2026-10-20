@@ -85,3 +85,9 @@ export function prettyJson(value: unknown): string {
     return String(value)
   }
 }
+
+export function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
+  if (value >= 10_000) return `${Math.round(value / 1000)}k`
+  return value.toLocaleString('en-US')
+}

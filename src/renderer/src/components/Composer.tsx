@@ -108,6 +108,7 @@ export function Composer(): React.JSX.Element {
   const phase = useRelayStore((state) => state.phase)
   const queued = useRelayStore((state) => state.queued)
   const hasKey = useRelayStore((state) => state.bootstrap?.hasApiKey ?? false)
+  const windowKind = useRelayStore((state) => state.windowKind)
   const usage = useRelayStore((state) => state.usage)
   const threshold = useRelayStore(
     (state) => state.bootstrap?.settings.handoffThreshold ?? 70
@@ -163,7 +164,9 @@ export function Composer(): React.JSX.Element {
     ? '先在设置中保存 DeepSeek API Key'
     : busy
       ? '运行中，Enter 可把消息加入队列'
-      : '输入任务，Enter 发送，Shift+Enter 换行'
+      : windowKind === 'project'
+        ? '向 Leader 下达目标，Enter 发送，Shift+Enter 换行'
+        : '输入任务，Enter 发送，Shift+Enter 换行'
 
   return (
     <div className="rly-composer-dock">

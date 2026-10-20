@@ -32,6 +32,17 @@ interface ContentBlockLike {
 }
 
 const OUTPUT_LIMIT = 60_000
+const AGENT_TEXT_LIMIT = 4_000
+const AGENT_TOOL_LIMIT = 300
+const AGENT_RESULT_LIMIT = 800
+const AGENT_DESCRIPTION_LIMIT = 600
+const AGENT_PROMPT_LIMIT = 6_000
+const AGENT_SUMMARY_LIMIT = 600
+
+interface NormalizerOptions {
+  /** Project window: turn subagent frames into `agent_*` events. */
+  teamMode?: boolean
+}
 
 function readUsage(usage: UsageLike | undefined | null): RequestUsage | null {
   if (!usage) return null
@@ -69,6 +80,27 @@ function stringifyOutput(value: unknown): string {
     return `${text.slice(0, OUTPUT_LIMIT)}\n… [输出已截断，共 ${text.length} 字符]`
   }
   return text
+}
+
+/** Short, readable form of a tool input for the worker transcript. */
+function summarizeToolInput(input: unknown): string {
+  if (input === null || typeof input !== 'object') return ''
+  const record = input as Record<string, unknown>
+  const parts: string[] = []
+  for (const key of ['file_path', 'path', 'command', 'pattern', 'url', 'query', 'description']) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) parts.push(`${key}=${value.trim()}`)
+    if (parts.length >= 2) break
+  }
+  if (parts.length === 0) {
+    try {
+      const serialized = JSON.stringify(input)
+      if (serialized && serialized !== '{}') return serialized.slice(0, AGENT_TOOL_LIMIT)
+    } catch {
+      // Ignore unserialisable input.
+    }
+  }
+  return parts.join(' ').slice(0, AGENT_TOOL_LIMIT)
 }
 
 /**
@@ -110,8 +142,18 @@ export class EventNormalizer {
   private toolInputs = new Map<string, unknown>()
   private editSnapshots = new Map<string, TargetSnapshot | null>()
   private currentBlockIndex = -1
+  /** task_id → subagent type, for permission attribution and deltas. */
+  private readonly agentNames = new Map<string, string>()
 
-  constructor(private readonly emit: Emit) {}
+  constructor(
+    private readonly emit: Emit,
+    private readonly options: NormalizerOptions = {}
+  ) {}
+
+  /** Display name of a worker, when its task has been seen. */
+  agentName(agentId: string): string | null {
+    return this.agentNames.get(agentId) ?? null
+  }
 
   beginTurn(): void {
     this.thinkingSeen = false
@@ -143,8 +185,12 @@ export class EventNormalizer {
   }
 
   normalize(message: SDKMessage): void {
-    // Never let subagent activity masquerade as the leader's own output.
-    if (isSubagentFrame(message)) return
+    // Subagent frames never masquerade as the leader. In Project mode they
+    // feed the team view instead.
+    if (isSubagentFrame(message)) {
+      if (this.options.teamMode) this.handleSubagentFrame(message)
+      return
+    }
 
     switch (message.type) {
       case 'system':
@@ -188,6 +234,70 @@ export class EventNormalizer {
         trigger: meta.trigger,
         preTokens: meta.pre_tokens,
         ...(meta.post_tokens !== undefined ? { postTokens: meta.post_tokens } : {})
+      })
+      return
+    }
+    if (this.options.teamMode && message.subtype === 'task_started') {
+      if (message.ambient === true) return
+      // mcp_task / local_bash are not team workers.
+      if (message.task_type !== 'local_agent' && !message.subagent_type) return
+      const name = message.subagent_type ?? 'agent'
+      this.agentNames.set(message.task_id, name)
+      this.emit({
+        type: 'agent_started',
+        agentId: message.task_id,
+        name,
+        description: message.description.slice(0, AGENT_DESCRIPTION_LIMIT),
+        prompt: message.prompt ? message.prompt.slice(0, AGENT_PROMPT_LIMIT) : null,
+        backgrounded: message.is_backgrounded === true,
+        startedAt: Date.now()
+      })
+      return
+    }
+    if (this.options.teamMode && message.subtype === 'task_progress') {
+      if (!message.subagent_type && !this.agentNames.has(message.task_id)) return
+      const name = message.subagent_type ?? this.agentNames.get(message.task_id) ?? 'agent'
+      this.agentNames.set(message.task_id, name)
+      this.emit({
+        type: 'agent_progress',
+        agentId: message.task_id,
+        name,
+        ...(message.summary
+          ? { summary: message.summary.slice(0, AGENT_SUMMARY_LIMIT) }
+          : {}),
+        ...(message.last_tool_name ? { lastToolName: message.last_tool_name } : {}),
+        usage: {
+          totalTokens: message.usage.total_tokens,
+          toolUses: message.usage.tool_uses,
+          durationMs: message.usage.duration_ms
+        }
+      })
+      return
+    }
+    if (this.options.teamMode && message.subtype === 'task_notification') {
+      if (!this.agentNames.has(message.task_id) && !('subagent_type' in message)) return
+      const name = this.agentNames.get(message.task_id) ?? 'agent'
+      this.emit({
+        type: 'agent_finished',
+        agentId: message.task_id,
+        name,
+        status:
+          message.status === 'completed'
+            ? 'done'
+            : message.status === 'failed'
+              ? 'failed'
+              : 'stopped',
+        summary: message.summary
+          ? message.summary.slice(0, AGENT_TEXT_LIMIT)
+          : null,
+        usage: message.usage
+          ? {
+              totalTokens: message.usage.total_tokens,
+              toolUses: message.usage.tool_uses,
+              durationMs: message.usage.duration_ms
+            }
+          : null,
+        finishedAt: Date.now()
       })
       return
     }
@@ -343,6 +453,72 @@ export class EventNormalizer {
         durationMs: startedAt ? Date.now() - startedAt : null,
         ...(diff ? { diff } : {})
       })
+    }
+  }
+
+  /**
+   * Worker transcript for the team panel. Stream events are ignored (the
+   * complete assistant messages already carry each block), thinking is not
+   * surfaced, and tool output is capped so a chatty worker cannot bloat the
+   * session log.
+   */
+  private handleSubagentFrame(message: SDKMessage): void {
+    const frame = message as {
+      type?: string
+      agent_id?: unknown
+      parent_tool_use_id?: string | null
+      subagent_type?: string
+      message?: { content?: unknown }
+    }
+    if (frame.type !== 'assistant' && frame.type !== 'user') return
+    const agentId =
+      typeof frame.agent_id === 'string' ? frame.agent_id : frame.parent_tool_use_id ?? ''
+    if (!agentId) return
+    const name = frame.subagent_type ?? this.agentNames.get(agentId) ?? 'agent'
+    this.agentNames.set(agentId, name)
+    const content = Array.isArray(frame.message?.content)
+      ? (frame.message.content as unknown as ContentBlockLike[])
+      : []
+
+    for (const block of content) {
+      if (frame.type === 'assistant') {
+        if (block.type === 'text' && typeof block.text === 'string') {
+          const text = block.text.trim()
+          if (!text) continue
+          this.emit({
+            type: 'agent_message',
+            agentId,
+            name,
+            kind: 'text',
+            text:
+              text.length > AGENT_TEXT_LIMIT
+                ? `${text.slice(0, AGENT_TEXT_LIMIT)}…`
+                : text,
+            at: Date.now()
+          })
+        } else if (block.type === 'tool_use' && block.name) {
+          this.emit({
+            type: 'agent_message',
+            agentId,
+            name,
+            kind: 'tool',
+            toolName: block.name,
+            text: summarizeToolInput(block.input) || block.name,
+            at: Date.now()
+          })
+        }
+      } else if (block.type === 'tool_result' && block.tool_use_id) {
+        const output = stringifyOutput(block.content).slice(0, AGENT_RESULT_LIMIT)
+        this.emit({
+          type: 'agent_message',
+          agentId,
+          name,
+          kind: 'result',
+          text: output || '（空）',
+          isError: block.is_error === true,
+          at: Date.now()
+        })
+      }
     }
   }
 

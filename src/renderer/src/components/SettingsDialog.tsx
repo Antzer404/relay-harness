@@ -48,6 +48,8 @@ function SettingsBody(): React.JSX.Element | null {
   const writeWorkspaceConfig = useRelayStore((state) => state.writeWorkspaceConfig)
   const clearWorkspaceConfig = useRelayStore((state) => state.clearWorkspaceConfig)
   const removeAllowedTool = useRelayStore((state) => state.removeAllowedTool)
+  const windowKind = useRelayStore((state) => state.windowKind)
+  const project = useRelayStore((state) => state.project)
 
   const [tab, setTab] = useState<Tab>('general')
   const [status, setStatus] = useState<Status>(null)
@@ -399,11 +401,23 @@ function SettingsBody(): React.JSX.Element | null {
 
               <label className="rly-field-label">当前目录</label>
               <div className="rly-inline">
-                <input className="rly-input" value={settings.workspace} readOnly />
-                <button type="button" className="rly-btn" onClick={() => void pickWorkspace()}>
-                  选择
-                </button>
+                <input
+                  className="rly-input"
+                  value={windowKind === 'project' ? (project?.folder ?? '') : settings.workspace}
+                  readOnly
+                />
+                {windowKind === 'main' ? (
+                  <button type="button" className="rly-btn" onClick={() => void pickWorkspace()}>
+                    选择
+                  </button>
+                ) : null}
               </div>
+              {windowKind === 'project' ? (
+                <p className="rly-hint">
+                  Project 窗口的工作文件夹在打开时固定；团队阵容可在该目录的{' '}
+                  <code>.relay/agents.json</code> 中调整。
+                </p>
+              ) : null}
 
               <div className="rly-effective">
                 <div className="rly-effective-row">
