@@ -118,6 +118,97 @@ describe('EventNormalizer', () => {
     }
   })
 
+  it('keeps subagent frames out of the main timeline', () => {
+    const events: HarnessEvent[] = []
+    const normalizer = new EventNormalizer((event) => events.push(event))
+    normalizer.beginTurn()
+
+    // The leader delegates through the Agent/Task tool.
+    normalizer.normalize(
+      assistant([
+        {
+          type: 'tool_use',
+          id: 'task_1',
+          name: 'Agent',
+          input: { description: '扫描构建配置', prompt: '列出所有构建配置文件' }
+        }
+      ])
+    )
+
+    // Inside the subagent: partial text, assistant text/tool, tool result.
+    normalizer.normalize({
+      type: 'stream_event',
+      event: {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'text_delta', text: '子代理内部输出' }
+      },
+      parent_tool_use_id: 'task_1',
+      uuid: '00000000-0000-4000-8000-000000000011',
+      session_id: '00000000-0000-4000-8000-000000000099'
+    } as unknown as SDKMessage)
+    normalizer.normalize({
+      ...(assistant([
+        { type: 'text', text: '子代理的中间说明' },
+        { type: 'tool_use', id: 'sub_tool_1', name: 'Read', input: { file_path: 'a.ts' } }
+      ]) as object),
+      parent_tool_use_id: 'task_1',
+      agent_id: 'agent_1',
+      subagent_type: 'Explore',
+      task_description: '扫描构建配置'
+    } as unknown as SDKMessage)
+    normalizer.normalize({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'sub_tool_1',
+            content: [{ type: 'text', text: '文件内容' }],
+            is_error: false
+          }
+        ]
+      },
+      parent_tool_use_id: 'task_1',
+      uuid: '00000000-0000-4000-8000-000000000012',
+      session_id: '00000000-0000-4000-8000-000000000099'
+    } as unknown as SDKMessage)
+
+    // A background agent can lose the parent link but keep its agent id.
+    normalizer.normalize({
+      ...(assistant([{ type: 'text', text: '后台代理输出' }]) as object),
+      agent_id: 'agent_2',
+      subagent_type: 'Explore'
+    } as unknown as SDKMessage)
+
+    // The Task tool's own result arrives on the main thread.
+    normalizer.normalize({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'task_1',
+            content: [{ type: 'text', text: '扫描完成：3 个配置文件' }],
+            is_error: false
+          }
+        ]
+      },
+      parent_tool_use_id: null,
+      uuid: '00000000-0000-4000-8000-000000000013',
+      session_id: '00000000-0000-4000-8000-000000000099'
+    } as unknown as SDKMessage)
+
+    expect(events.map((event) => event.type)).toEqual(['tool_call', 'tool_result'])
+    const call = events[0]
+    expect(call?.type === 'tool_call' ? call.name : null).toBe('Agent')
+    const report = events[1]
+    expect(report?.type === 'tool_result' ? report.toolUseId : null).toBe('task_1')
+    expect(report?.type === 'tool_result' ? report.output : '').toContain('扫描完成')
+  })
+
   it('reports the CLI permission mode at init and clamps unknown modes', () => {
     const events: HarnessEvent[] = []
     const normalizer = new EventNormalizer((event) => events.push(event))

@@ -72,6 +72,27 @@ function stringifyOutput(value: unknown): string {
 }
 
 /**
+ * Frames produced inside a Task subagent carry the spawning tool_use id in
+ * `parent_tool_use_id` (and assistant frames also carry `agent_id`). They must
+ * never be rendered as the main thread's: the leader sees its Task card and
+ * the final report, not the subagent's internals. The team view planned for
+ * project mode will consume these frames separately instead.
+ */
+function isSubagentFrame(message: SDKMessage): boolean {
+  if (
+    message.type !== 'assistant' &&
+    message.type !== 'user' &&
+    message.type !== 'stream_event'
+  ) {
+    return false
+  }
+  const frame = message as { parent_tool_use_id?: string | null; agent_id?: unknown }
+  if (frame.parent_tool_use_id != null) return true
+  // Background/resumed agents may lose the parent link but keep their id.
+  return typeof frame.agent_id === 'string'
+}
+
+/**
  * Converts SDK stream-json messages into Relay's own event model.
  * The renderer never sees an SDK message.
  */
@@ -122,6 +143,9 @@ export class EventNormalizer {
   }
 
   normalize(message: SDKMessage): void {
+    // Never let subagent activity masquerade as the leader's own output.
+    if (isSubagentFrame(message)) return
+
     switch (message.type) {
       case 'system':
         this.handleSystem(message)
