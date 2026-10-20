@@ -82,7 +82,8 @@ export const windowControlSchema = z.object({
 })
 
 export const sendSchema = z.object({
-  text: z.string().min(1, '消息不能为空').max(200_000, '消息过长')
+  text: z.string().min(1, '消息不能为空').max(200_000, '消息过长'),
+  interrupt: z.boolean().optional()
 })
 
 export const setPermissionModeSchema = z

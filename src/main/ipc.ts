@@ -177,8 +177,8 @@ export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
   ipcMain.handle(IPC_CHANNELS.send, (event, raw: unknown) =>
     run(async () => {
       const host = hostOf(hosts, event)
-      const { text } = sendSchema.parse(raw)
-      await host.sessions.send(text)
+      const { text, interrupt } = sendSchema.parse(raw)
+      await host.sessions.send(text, { interrupt })
       return undefined
     })
   )

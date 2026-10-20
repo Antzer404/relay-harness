@@ -7,7 +7,6 @@ import { EMPTY_TEAM, reduceTeam } from '@shared/agents'
 import type { HarnessEvent, RelayEvent, SessionRecord } from '@shared/events'
 import { EventNormalizer } from '../src/main/runtime/normalizer'
 import {
-  DEFAULT_PROJECT_AGENTS,
   buildProjectAgentDefinitions,
   loadProjectRoster,
   projectAgentViews,
@@ -129,17 +128,12 @@ function subagentUser(content: unknown[]): SDKMessage {
 }
 
 describe('project roster', () => {
-  it('uses the default four workers when no file exists', () => {
+  it('has no fixed workers when the workspace declares none', () => {
     const dir = makeDir()
     const roster = loadProjectRoster(dir)
     expect(roster.source).toBe('default')
     expect(roster.error).toBeNull()
-    expect(roster.specs.map((spec) => spec.id)).toEqual([
-      'architect',
-      'backend',
-      'frontend',
-      'tester'
-    ])
+    expect(roster.specs).toEqual([])
   })
 
   it('reads a custom .relay/agents.json', () => {
@@ -171,25 +165,36 @@ describe('project roster', () => {
     expect(definitions.reviewer?.tools).toEqual(['Read', 'Grep'])
   })
 
-  it('falls back to defaults when the file is invalid', () => {
+  it('falls back to an empty roster when the file is invalid', () => {
     const dir = makeDir()
     mkdirSync(join(dir, '.relay'), { recursive: true })
     writeFileSync(join(dir, '.relay', 'agents.json'), '{oops', 'utf8')
     const roster = loadProjectRoster(dir)
     expect(roster.source).toBe('default')
-    expect(roster.specs).toEqual(DEFAULT_PROJECT_AGENTS)
+    expect(roster.specs).toEqual([])
     expect(roster.error).toContain('agents.json')
   })
 
-  it('builds a leader prompt that lists every worker and the discipline', () => {
-    const prompt = projectLeaderPrompt(DEFAULT_PROJECT_AGENTS)
+  it('lets the leader compose the team, with declared specialists optional', () => {
+    const prompt = projectLeaderPrompt()
     expect(prompt).toContain('团队协作模式（Project）')
-    for (const spec of DEFAULT_PROJECT_AGENTS) {
-      expect(prompt).toContain(`${spec.id}（${spec.label}）`)
-    }
+    expect(prompt).toContain('团队成员不预设')
+    expect(prompt).toContain('general-purpose')
+    expect(prompt).toContain('团队组建')
     expect(prompt).toContain('任务单必须自包含')
     expect(prompt).toContain('不要为派发而派发')
-    expect(projectAgentViews(DEFAULT_PROJECT_AGENTS)[0]?.label).toBe('架构')
+    expect(prompt).not.toContain('架构（')
+    expect(prompt).not.toContain('backend')
+
+    const specialist = {
+      id: 'reviewer',
+      label: '评审',
+      description: '代码评审',
+      prompt: '你是评审 agent。'
+    }
+    const withSpecs = projectLeaderPrompt([specialist])
+    expect(withSpecs).toContain('reviewer（评审）')
+    expect(projectAgentViews([specialist])[0]?.label).toBe('评审')
   })
 })
 

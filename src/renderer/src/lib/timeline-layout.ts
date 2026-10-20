@@ -1,5 +1,6 @@
 import type { TimelineItem } from '@shared/timeline'
-import { getItemOpen, permissionParamsKey } from './item-open-state'
+import { getGroupOpen, getItemOpen, permissionParamsKey } from './item-open-state'
+import { isProcessRow, type ProcessGroupItem, type TimelineRow } from './timeline-groups'
 
 /**
  * Pure geometry helpers behind the virtual timeline. Everything here is
@@ -86,6 +87,11 @@ export function isItemOpen(item: TimelineItem): boolean {
 
 const TEXT_LINE = 25
 
+/** Whether the group row is expanded; running groups stay open by default. */
+export function isGroupOpen(group: ProcessGroupItem): boolean {
+  return getGroupOpen(group.id) ?? group.status === 'running'
+}
+
 /** Wrapped line count for a block of text at roughly `perLine` characters. */
 function textLines(text: string, perLine: number): number {
   if (!text) return 1
@@ -127,4 +133,15 @@ export function estimateItemHeight(item: TimelineItem): number {
     default:
       return 72
   }
+}
+
+const GROUP_HEADER = 46
+
+/** Height estimate for a grouped process row (header plus expanded details). */
+export function estimateRowHeight(row: TimelineRow): number {
+  if (!isProcessRow(row)) return estimateItemHeight(row)
+  if (!isGroupOpen(row)) return GROUP_HEADER
+  let total = GROUP_HEADER + 10
+  for (const item of row.items) total += estimateItemHeight(item) + 8
+  return total
 }

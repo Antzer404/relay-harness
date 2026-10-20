@@ -583,7 +583,12 @@ export class EventNormalizer {
     }
 
     const isError = message.is_error === true
-    if (isError) {
+    // Esc and Ctrl+Enter abort the turn on purpose; that is not a failure and
+    // must not surface as an error banner with a retry button.
+    const terminalReason = (message as { terminal_reason?: string }).terminal_reason
+    const aborted =
+      terminalReason === 'aborted_streaming' || terminalReason === 'aborted_tools'
+    if (isError && !aborted) {
       const detail =
         message.subtype === 'success'
           ? String((message as { result?: string }).result ?? '本轮执行失败')
@@ -600,8 +605,8 @@ export class EventNormalizer {
 
     this.emit({
       type: 'turn_end',
-      reason: message.stop_reason ?? message.terminal_reason ?? message.subtype,
-      isError,
+      reason: message.stop_reason ?? terminalReason ?? message.subtype,
+      isError: isError && !aborted,
       durationMs: message.duration_ms ?? null,
       costUsd: result.total_cost_usd ?? null
     })

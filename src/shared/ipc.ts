@@ -67,7 +67,7 @@ export interface RelayApi {
   openProjectWindow(): Promise<IpcResult<boolean>>
   startSession(options?: StartSessionOptions): Promise<IpcResult<SessionSummary>>
   stopSession(): Promise<IpcResult<void>>
-  send(text: string): Promise<IpcResult<void>>
+  send(text: string, options?: { interrupt?: boolean }): Promise<IpcResult<void>>
   interrupt(): Promise<IpcResult<void>>
   setPermissionMode(mode: VisiblePermissionMode): Promise<IpcResult<SetPermissionModeResult>>
   respondPermission(decision: PermissionDecision): Promise<IpcResult<void>>

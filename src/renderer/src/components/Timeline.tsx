@@ -1,32 +1,14 @@
-import { memo, useEffect, useRef } from 'react'
-import { useRelayStore, type TimelineItem } from '../store/useRelayStore'
+import { memo, useEffect, useMemo, useRef } from 'react'
+import { useRelayStore } from '../store/useRelayStore'
 import { useVirtualTimeline } from '../hooks/useVirtualTimeline'
-import { UserRow } from './items/UserRow'
-import { AssistantText } from './items/AssistantText'
-import { ThinkingBlock } from './items/ThinkingBlock'
-import { ToolCard } from './items/ToolCard'
-import { PermissionCard } from './items/PermissionCard'
-import { ErrorBanner } from './items/ErrorBanner'
-import { NoticeRow } from './items/NoticeRow'
+import { groupTimeline, type TimelineRow } from '../lib/timeline-groups'
+import { ProcessGroup } from './ProcessGroup'
+import { TimelineItemView } from './TimelineItemView'
 import { IconSpark } from './icons'
 
-function renderItem(item: TimelineItem): React.JSX.Element | null {
-  switch (item.kind) {
-    case 'user':
-      return <UserRow item={item} />
-    case 'text':
-      return <AssistantText item={item} />
-    case 'thinking':
-      return <ThinkingBlock item={item} />
-    case 'tool':
-      return <ToolCard item={item} />
-    case 'permission':
-      return <PermissionCard item={item} />
-    case 'error':
-      return <ErrorBanner item={item} />
-    case 'notice':
-      return <NoticeRow item={item} />
-  }
+function renderRow(row: TimelineRow): React.JSX.Element | null {
+  if (row.kind === 'group') return <ProcessGroup group={row} />
+  return <TimelineItemView item={row} />
 }
 
 /**
@@ -34,13 +16,27 @@ function renderItem(item: TimelineItem): React.JSX.Element | null {
  * streaming tail), so memoized rows skip diffing and Markdown parsing while
  * scrolling. Only the live tail re-renders per delta.
  */
-const TimelineRow = memo(function TimelineRow({
-  item
-}: {
-  item: TimelineItem
-}): React.JSX.Element | null {
-  return renderItem(item)
-})
+export function rowsEqual(previous: { row: TimelineRow }, next: { row: TimelineRow }): boolean {
+  const a = previous.row
+  const b = next.row
+  if (a === b) return true
+  if (a.kind !== 'group' || b.kind !== 'group') return false
+  if (a.id !== b.id || a.status !== b.status || a.endedAt !== b.endedAt) return false
+  if (a.items.length !== b.items.length) return false
+  for (let index = 0; index < a.items.length; index += 1) {
+    if (a.items[index] !== b.items[index]) return false
+  }
+  return true
+}
+
+const TimelineRowView = memo(
+  function TimelineRowView({ row }: { row: TimelineRow }): React.JSX.Element | null {
+    return renderRow(row)
+  },
+  // Group objects are rebuilt on every reducer step; compare their members so
+  // historical groups skip re-rendering while the tail streams.
+  rowsEqual
+)
 
 const STARTERS = [
   '查看当前目录，简要说明这个项目在做什么',
@@ -89,9 +85,12 @@ export function Timeline(): React.JSX.Element {
   const phase = useRelayStore((state) => state.phase)
   const activeId = useRelayStore((state) => state.activeId)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Consecutive thinking/tool rows collapse into one "process" row so user
+  // messages stay easy to find when scrolling back through a long session.
+  const rows = useMemo(() => groupTimeline(items), [items])
 
   const { layout, start, end, detached, registerRow, onScroll, scrollToBottom } =
-    useVirtualTimeline({ items, scrollRef, resetKey: activeId })
+    useVirtualTimeline({ rows, scrollRef, resetKey: activeId })
 
   // A permission request blocks the turn; pull the view back to the tail so
   // the pending card cannot be missed while the user is reading history.
@@ -109,17 +108,17 @@ export function Timeline(): React.JSX.Element {
           <Welcome />
         ) : (
           <div className="rly-vlist" style={{ height: layout.total }}>
-            {items.slice(start, end).map((item, offset) => {
+            {rows.slice(start, end).map((row, offset) => {
               const index = start + offset
               return (
                 <div
-                  key={item.id}
+                  key={row.id}
                   className="rly-vrow"
-                  data-item-id={item.id}
-                  ref={registerRow(item.id)}
+                  data-item-id={row.id}
+                  ref={registerRow(row.id)}
                   style={{ transform: `translateY(${layout.offsets[index] ?? 0}px)` }}
                 >
-                  <TimelineRow item={item} />
+                  <TimelineRowView row={row} />
                 </div>
               )
             })}

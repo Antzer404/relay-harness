@@ -167,15 +167,15 @@ export function Composer(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [interrupt])
 
-  const submit = (): void => {
+  const submit = (interrupt = false): void => {
     if (!canSend) return
-    void send(draft)
+    void send(draft, { interrupt })
   }
 
   const placeholder = !hasKey
     ? '先在设置中保存 DeepSeek API Key'
     : busy
-      ? '运行中，Enter 可把消息加入队列'
+      ? '运行中 · Enter 插入本轮 · Ctrl+Enter 立即打断 · Esc 停止'
       : windowKind === 'project'
         ? '向 Leader 下达目标，Enter 发送，Shift+Enter 换行'
         : '输入任务，Enter 发送，Shift+Enter 换行'
@@ -217,7 +217,7 @@ export function Composer(): React.JSX.Element {
             if (event.key !== 'Enter' || event.shiftKey) return
             if (event.nativeEvent.isComposing) return
             event.preventDefault()
-            submit()
+            submit(event.ctrlKey || event.metaKey)
           }}
         />
         <div className="rly-composer-bar">
@@ -227,7 +227,7 @@ export function Composer(): React.JSX.Element {
               {queued.length > 0
                 ? `已排队 ${queued.length} 条`
                 : busy
-                  ? '模型正在工作'
+                  ? 'Enter 插入本轮 · Ctrl+Enter 打断'
                   : 'Enter 发送 · Shift+Enter 换行'}
             </span>
           </div>
@@ -258,8 +258,9 @@ export function Composer(): React.JSX.Element {
                 type="button"
                 className="rly-send-btn"
                 disabled={!canSend}
-                aria-label={busy ? '加入队列' : '发送'}
-                onClick={submit}
+                aria-label={busy ? '插入本轮' : '发送'}
+                title={busy ? '插入本轮（Ctrl+Enter 立即打断）' : '发送'}
+                onClick={() => submit()}
               >
                 <IconSend />
               </button>

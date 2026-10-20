@@ -122,3 +122,13 @@
 - **事件**：新增耐久事件 `agent_started` / `agent_progress` / `agent_finished` / `agent_message`。`task_started` / `task_progress` / `task_notification` 映射为生命周期事件；子代理的完整 assistant/user 帧只提炼 text / tool / result（丢弃 thinking 与 stream 增量，文本 4k、工具 300、结果 800 字符上限），不再进入 leader 时间线。事件落 JSONL，回放由纯函数 `reduceTeam` 重建团队状态。
 - **UI**：侧栏底部「团队」区（成员 / 频道两个页签），成员卡显示状态、当前摘要与 token；点击成员打开右侧抽屉查看任务单与完整过程。主时间线仍只显示 leader 产出；顶栏显示 `Project` 徽标与绑定目录；设置页显示该目录且不允许改选。
 - **未纳入 MVP**：worktree 隔离、单任务停止、worker 独立模型/权限档、后台代理常驻、agent 间直接对话、真实 key 下的编排质量与并发成本压测（需在 Windows 用 DeepSeek 实测）。
+
+## 11. 团队组成修订：Leader 自主组建（2026-10-20）
+
+用户反馈两点：Leader 主动唤起子代理未经验证；团队不应固定为「架构 / 后端 / 前端 / 测试」范式。修订如下：
+
+- **去掉默认阵容**：`loadProjectRoster` 在无 `.relay/agents.json` 时返回空列表，不再注入固定四人。`projectLeaderPrompt` 改为要求 Leader 收到目标后先说明「团队组建」（角色、职责、原因），再按需要派发；通用成员使用内置 `general-purpose` 子代理，角色写进任务单第一行（如「角色：接口调研」）。
+- **约束说明**：SDK 的 `agents` 只能在 query 启动时注册，Leader 无法在运行中新建 agent 类型；用 `general-purpose` + 任务单角色描述实现动态组队，避免为每个角色预注册。
+- **agents.json 降级**：仍支持声明 1–6 名可复用专员，作为 Leader 可选的人池，不再整体替换团队。
+- **UI**：团队面板固定显示 Leader；成员列表只由 `agent_started` 事件动态生成，空态提示「成员由 Leader 按任务自行判断」。`general-purpose` 显示为「子代理」，任务描述即角色/任务摘要。
+- **验证手段**：dev 终端在派发时打印 `[relay] agent dispatched：…`，团队面板实时显示成员；仍需真实 key 确认 DeepSeek 下 Task 工具会被调用，以及派发质量。

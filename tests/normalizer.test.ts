@@ -371,4 +371,20 @@ describe('EventNormalizer', () => {
       }
     }
   })
+
+  it('treats a user abort as a clean turn end rather than an error', () => {
+    const events: HarnessEvent[] = []
+    const normalizer = new EventNormalizer((event) => events.push(event))
+    normalizer.normalize(
+      result({
+        subtype: 'error_during_execution',
+        is_error: true,
+        terminal_reason: 'aborted_streaming',
+        errors: ['interrupted by user']
+      })
+    )
+    expect(events.some((event) => event.type === 'error')).toBe(false)
+    const end = events.find((event) => event.type === 'turn_end')
+    expect(end?.type === 'turn_end' ? end.isError : true).toBe(false)
+  })
 })

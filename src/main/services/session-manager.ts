@@ -323,7 +323,13 @@ export class SessionManager {
     return summary
   }
 
-  async send(text: string): Promise<void> {
+  /**
+   * `interrupt` mirrors Claude Code's Ctrl+Enter: the running turn steps
+   * aside and the message is answered immediately. The default while busy is
+   * a mid-turn insertion (`priority: 'next'`), folded in once the tool calls
+   * the turn is running finish.
+   */
+  async send(text: string, options: { interrupt?: boolean } = {}): Promise<void> {
     if (!this.current) throw new RelayError('no_session', '尚未启动会话')
     // A crashed CLI leaves the durable session intact; rebuild it on the next
     // message instead of making the user reopen the session manually.
@@ -333,12 +339,19 @@ export class SessionManager {
     if (!this.current) throw new RelayError('no_session', '会话未能重新启动')
     const sessionId = this.current.id
     const record = this.store.get(sessionId)
+    const busy = this.phase === 'busy' || this.phase === 'starting'
+    const interrupt = Boolean(options.interrupt) && busy
 
     const envelope: RelayEvent = {
       sessionId,
       seq: (this.seq += 1),
       ts: Date.now(),
-      event: { type: 'user_message', text }
+      event: {
+        type: 'user_message',
+        text,
+        ...(busy ? { inserted: true } : {}),
+        ...(interrupt ? { interrupted: true } : {})
+      }
     }
     this.store.appendEvent(sessionId, envelope)
     this.options.emit(envelope)
@@ -347,7 +360,10 @@ export class SessionManager {
       this.store.update(sessionId, { title: titleFromText(text) })
     }
 
-    this.runtime.send(sessionId, { text })
+    this.runtime.send(sessionId, {
+      text,
+      ...(interrupt ? { priority: 'now' as const } : busy ? { priority: 'next' as const } : {})
+    })
   }
 
   async interrupt(): Promise<void> {
@@ -564,6 +580,10 @@ export class SessionManager {
           event.toolName !== 'ExitPlanMode' &&
           !event.suggestions.some((entry) => entry.mode !== undefined)
       })
+    }
+
+    if (this.projectMode && event.type === 'agent_started') {
+      console.info(`[relay] agent dispatched：${event.name} · ${event.description}`)
     }
 
     const envelope: RelayEvent = {

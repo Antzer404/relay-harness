@@ -104,7 +104,7 @@ export interface RelayState {
   refreshBootstrap: () => Promise<void>
   refreshSessions: () => Promise<void>
   setDraft: (value: string) => void
-  send: (text: string) => Promise<void>
+  send: (text: string, options?: { interrupt?: boolean }) => Promise<void>
   flushQueue: () => Promise<void>
   interrupt: () => Promise<void>
   applyPermissionMode: (mode: VisiblePermissionMode) => Promise<void>
@@ -206,7 +206,9 @@ function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): Ti
         kind: 'user',
         id: nextId('user'),
         text: event.text,
-        at: ts
+        at: ts,
+        ...(event.inserted ? { inserted: true } : {}),
+        ...(event.interrupted ? { interrupted: true } : {})
       })
 
     case 'text_delta': {
@@ -612,12 +614,25 @@ export const useRelayStore = create<RelayState>((set, get) => ({
 
   setDraft: (value) => set({ draft: value }),
 
-  send: async (text) => {
+  send: async (text, options) => {
     const trimmed = text.trim()
     if (!trimmed) return
     const state = get()
-    if (state.phase === 'busy' || state.phase === 'starting') {
+    // Only the brief window before the runtime reports ready still needs a
+    // local queue; once a session is live, messages are inserted into the
+    // running turn exactly like Claude Code's composer.
+    if (state.phase === 'starting' || (state.phase === 'busy' && !state.current)) {
       set({ queued: [...state.queued, trimmed], draft: '' })
+      return
+    }
+    if (state.phase === 'busy' && state.current) {
+      set({ draft: '' })
+      const result = await window.relay.send(trimmed, { interrupt: options?.interrupt })
+      if (!result.ok) {
+        set((s) => ({
+          items: addItem(s.items, errorItem(result.error.message))
+        }))
+      }
       return
     }
     if (!state.bootstrap?.hasApiKey) {
@@ -644,7 +659,7 @@ export const useRelayStore = create<RelayState>((set, get) => ({
     }
 
     set({ draft: '', phase: 'busy', sending: true })
-    const result = await window.relay.send(trimmed)
+    const result = await window.relay.send(trimmed, { interrupt: options?.interrupt })
     set({ sending: false })
     if (!result.ok) {
       set((s) => ({

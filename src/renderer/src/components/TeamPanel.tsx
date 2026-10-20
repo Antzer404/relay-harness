@@ -12,6 +12,7 @@ export function TeamPanel(): React.JSX.Element | null {
   const windowKind = useRelayStore((state) => state.windowKind)
   const project = useRelayStore((state) => state.project)
   const team = useRelayStore((state) => state.team)
+  const phase = useRelayStore((state) => state.phase)
   const openAgent = useRelayStore((state) => state.openAgent)
   const activeAgentId = useRelayStore((state) => state.activeAgentId)
   const [tab, setTab] = useState<'members' | 'feed'>('members')
@@ -25,8 +26,10 @@ export function TeamPanel(): React.JSX.Element | null {
   if (windowKind !== 'project') return null
 
   const running = team.agents.filter((agent) => agent.status === 'running').length
+  const leaderBusy = phase === 'busy' || phase === 'starting'
   const labelFor = (name: string): string =>
-    project?.agents.find((agent) => agent.id === name)?.label ?? name
+    project?.agents.find((agent) => agent.id === name)?.label ??
+    (name === 'general-purpose' ? '子代理' : name)
 
   return (
     <section className="rly-team" aria-label="团队">
@@ -40,7 +43,7 @@ export function TeamPanel(): React.JSX.Element | null {
             ? `${running} 个进行中`
             : team.agents.length > 0
               ? `${team.agents.length} 个已派发`
-              : '待命'}
+              : '未派发'}
         </span>
       </div>
 
@@ -68,19 +71,25 @@ export function TeamPanel(): React.JSX.Element | null {
 
       {tab === 'members' ? (
         <div className="rly-team-scroll">
+          <div className={`rly-team-member is-leader${leaderBusy ? ' is-running' : ''}`}>
+            <span className="rly-team-dot" aria-hidden="true" />
+            <span className="rly-team-main">
+              <span className="rly-team-name">
+                Leader
+                <em>{leaderBusy ? '工作中' : '待命'}</em>
+              </span>
+              <span className="rly-team-task">按任务组建团队、派发并验收</span>
+            </span>
+          </div>
+
           {team.agents.length === 0 ? (
-            project?.agents.map((agent) => (
-              <div key={agent.id} className="rly-team-member is-idle">
-                <span className="rly-team-dot" aria-hidden="true" />
-                <span className="rly-team-main">
-                  <span className="rly-team-name">
-                    {agent.label}
-                    <em>待命</em>
-                  </span>
-                  <span className="rly-team-task">{agent.description}</span>
-                </span>
-              </div>
-            ))
+            <p className="rly-team-hint">
+              {project?.agents.length
+                ? `Leader 尚未派发成员。可调用专员：${project.agents
+                    .map((agent) => agent.label)
+                    .join('、')}（按需使用，也可以自行组建角色）。`
+                : '成员由 Leader 按任务自行判断。任务开始后，派发的子代理会出现在这里。'}
+            </p>
           ) : (
             team.agents.map((agent) => (
               <button
@@ -111,7 +120,7 @@ export function TeamPanel(): React.JSX.Element | null {
             ))
           )}
           {project?.rosterError ? (
-            <p className="rly-team-error">{project.rosterError}（已使用默认阵容）</p>
+            <p className="rly-team-error">{project.rosterError}（已忽略该文件）</p>
           ) : null}
         </div>
       ) : (

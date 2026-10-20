@@ -21,3 +21,16 @@ export function setItemOpen(id: string, open: boolean): void {
 export function permissionParamsKey(itemId: string): string {
   return `${itemId}:params`
 }
+
+function groupKey(id: string): string {
+  return `${id}:group`
+}
+
+export function getGroupOpen(id: string): boolean | undefined {
+  return overrides.get(groupKey(id))
+}
+
+export function setGroupOpen(id: string, open: boolean): void {
+  if (overrides.size > 20_000) overrides.clear()
+  overrides.set(groupKey(id), open)
+}

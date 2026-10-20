@@ -11,7 +11,8 @@ const api: RelayApi = {
   openProjectWindow: () => ipcRenderer.invoke(IPC_CHANNELS.openProjectWindow),
   startSession: (options) => ipcRenderer.invoke(IPC_CHANNELS.startSession, options ?? {}),
   stopSession: () => ipcRenderer.invoke(IPC_CHANNELS.stopSession),
-  send: (text) => ipcRenderer.invoke(IPC_CHANNELS.send, { text }),
+  send: (text, options) =>
+    ipcRenderer.invoke(IPC_CHANNELS.send, { text, interrupt: options?.interrupt === true }),
   interrupt: () => ipcRenderer.invoke(IPC_CHANNELS.interrupt),
   setPermissionMode: (mode) =>
     ipcRenderer.invoke(IPC_CHANNELS.setPermissionMode, { mode }),

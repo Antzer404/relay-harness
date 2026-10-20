@@ -83,7 +83,7 @@ export type HarnessEvent =
       /** Emitted when the mode changes mid-session (host switch or approval). */
       mode: VisiblePermissionMode
     }
-  | { type: 'user_message'; text: string }
+  | { type: 'user_message'; text: string; inserted?: boolean; interrupted?: boolean }
   | { type: 'status'; state: SessionPhase; detail?: string }
   | { type: 'text_delta'; text: string }
   | { type: 'text_done'; text: string }

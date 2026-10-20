@@ -5,6 +5,7 @@ import {
   type PermissionResult,
   type PermissionUpdate,
   type Query,
+  type SDKMessage,
   type SDKUserMessage
 } from '@anthropic-ai/claude-agent-sdk'
 import { toVisiblePermissionMode } from '@shared/events'
@@ -76,6 +77,10 @@ interface SessionState {
   usage: UsageSnapshot | null
   closed: boolean
   stderr: string[]
+  /** True between the first user message and the turn's result. */
+  turnActive: boolean
+  /** Messages sent with `priority: 'now'` whose abort result is still due. */
+  pendingNow: number
 }
 
 function stringify(value: unknown): string {
@@ -182,6 +187,13 @@ function buildEnv(options: StartSessionOptions): Record<string, string> {
   return env
 }
 
+function isAbortedResult(message: Extract<SDKMessage, { type: 'result' }>): boolean {
+  const reason = (message as { terminal_reason?: string }).terminal_reason
+  if (reason) return reason === 'aborted_streaming' || reason === 'aborted_tools'
+  // Older CLIs only expose the subtype.
+  return (message as { subtype?: string }).subtype === 'error_during_execution'
+}
+
 export class ClaudeAgentRuntime implements RuntimeAdapter {
   private readonly sessions = new Map<string, SessionState>()
   private readonly listeners = new Set<(sessionId: string, event: HarnessEvent) => void>()
@@ -201,7 +213,9 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       permissions: new Map(),
       usage: null,
       closed: false,
-      stderr: []
+      stderr: [],
+      turnActive: false,
+      pendingNow: 0
     }
 
     const canUseTool: CanUseTool = async (toolName, toolInput, { signal, suggestions, decisionReason, title, blockedPath, toolUseID, agentID }) => {
@@ -311,7 +325,19 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         if (state.closed) break
         state.normalizer.normalize(message)
         if (message.type === 'result') {
-          this.emitStatus(sessionId, 'idle')
+          // A `priority: 'now'` message interrupts the running turn; its
+          // abort result arrives first and the queued message starts a fresh
+          // turn on the same query. Keep the session busy and reset the
+          // normalizer for that new turn instead of reporting idle.
+          if (state.pendingNow > 0 && isAbortedResult(message)) {
+            state.pendingNow -= 1
+            state.normalizer.beginTurn()
+            state.turnActive = true
+          } else {
+            if (state.pendingNow > 0) state.pendingNow -= 1
+            state.turnActive = false
+            this.emitStatus(sessionId, 'idle')
+          }
         }
       }
     } catch (error) {
@@ -357,12 +383,20 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       })
       return
     }
-    state.normalizer.beginTurn()
+    // Mid-turn messages (Claude Code's "insert while working") must not reset
+    // the normalizer: its tool timers and edit snapshots belong to tools that
+    // are still running in this same turn.
+    if (!state.turnActive) {
+      state.normalizer.beginTurn()
+      state.turnActive = true
+    }
+    if (input.priority === 'now') state.pendingNow += 1
     this.emitStatus(sessionId, 'busy')
     state.input.push({
       type: 'user',
       message: { role: 'user', content: input.text },
-      parent_tool_use_id: null
+      parent_tool_use_id: null,
+      ...(input.priority ? { priority: input.priority } : {})
     })
   }
 

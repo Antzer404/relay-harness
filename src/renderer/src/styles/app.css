@@ -770,7 +770,17 @@ textarea {
 
 .rly-msg-user {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   justify-content: flex-end;
+  gap: 4px;
+}
+
+.rly-user-tag {
+  padding-right: 4px;
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }
 
 .rly-bubble {
@@ -882,6 +892,102 @@ textarea {
   word-break: break-word;
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* --------------------------------------------------------------- process */
+
+.rly-group {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  overflow: hidden;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-group.is-running {
+  border-color: var(--border-strong);
+}
+
+.rly-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rly-group-head:hover {
+  color: var(--text);
+}
+
+.rly-group-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.rly-group.is-done .rly-group-dot {
+  background: var(--success);
+}
+
+.rly-group.is-error .rly-group-dot {
+  background: var(--danger);
+}
+
+.rly-group.is-running .rly-group-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  animation: rly-pulse 1.5s ease-in-out infinite;
+}
+
+.rly-group-label {
+  flex: 0 0 auto;
+  font-weight: 520;
+  color: var(--text);
+}
+
+.rly-group-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rly-group-meta {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.rly-group-chevron {
+  display: flex;
+  flex: 0 0 auto;
+  color: var(--text-3);
+  transition: transform 0.18s ease;
+}
+
+.rly-group-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.rly-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 10px 10px;
+  border-top: 1px solid var(--border);
 }
 
 /* ------------------------------------------------------------------ tool */
@@ -3024,6 +3130,19 @@ button.rly-team-member:hover {
   opacity: 0.72;
 }
 
+.rly-team-member.is-leader {
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.rly-team-hint {
+  padding: 6px 10px 10px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text-3);
+}
+
 .rly-team-dot {
   flex: 0 0 auto;
   width: 7px;
@@ -3436,6 +3555,7 @@ button.rly-team-member:hover {
 /* Software rendering: keep layout identical, drop the new GPU-only effects. */
 html[data-lowfx='1'] .rly-bubble,
 html[data-lowfx='1'] .rly-tool,
+html[data-lowfx='1'] .rly-group,
 html[data-lowfx='1'] .rly-thinking,
 html[data-lowfx='1'] .rly-permission,
 html[data-lowfx='1'] .rly-error,

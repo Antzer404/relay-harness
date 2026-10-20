@@ -39,6 +39,13 @@ export interface RuntimeSessionHandle {
 
 export interface UserInput {
   text: string
+  /**
+   * Streaming-input steering, matching Claude Code's composer:
+   * - `next` (default): folded into the running turn once its current tool
+   *   calls finish;
+   * - `now`: makes the running turn step aside and answers at once.
+   */
+  priority?: 'now' | 'next'
 }
 
 export interface RuntimeAdapter {

@@ -11,6 +11,10 @@ export interface UserItem {
   id: string
   text: string
   at: number
+  /** Sent while the previous turn was still running. */
+  inserted?: boolean
+  /** Ctrl+Enter: interrupted the running turn before sending. */
+  interrupted?: boolean
 }
 
 export interface TextItem {

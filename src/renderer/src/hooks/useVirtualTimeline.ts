@@ -7,10 +7,10 @@ import {
   type RefObject,
   type UIEvent
 } from 'react'
-import type { TimelineItem } from '@shared/timeline'
+import type { TimelineRow } from '../lib/timeline-groups'
 import {
   buildLayout,
-  estimateItemHeight,
+  estimateRowHeight,
   findFirstVisible,
   findVisibleRange,
   type TimelineLayout
@@ -55,12 +55,12 @@ const EMPTY_LAYOUT: TimelineLayout = { ids: [], offsets: [], heights: [], total:
  * tail, the view is pinned to the bottom so streaming stays visible.
  */
 export function useVirtualTimeline(options: {
-  items: TimelineItem[]
+  rows: TimelineRow[]
   scrollRef: RefObject<HTMLDivElement | null>
   /** Changing this (session id) resets scroll position to the bottom. */
   resetKey: string | null
 }): VirtualTimeline {
-  const { items, scrollRef, resetKey } = options
+  const { rows, scrollRef, resetKey } = options
 
   const heights = useRef(new Map<string, number>())
   const layoutRef = useRef<TimelineLayout>(EMPTY_LAYOUT)
@@ -79,12 +79,12 @@ export function useVirtualTimeline(options: {
   const [detached, setDetached] = useState(false)
 
   const layout = useMemo(() => {
-    const ids = items.map((item) => item.id)
-    const sizes = items.map((item) => heights.current.get(item.id) ?? estimateItemHeight(item))
+    const ids = rows.map((row) => row.id)
+    const sizes = rows.map((row) => heights.current.get(row.id) ?? estimateRowHeight(row))
     return buildLayout(ids, sizes, TIMELINE_GAP)
-    // `version` bumps after measurements land; `items` rebuilds the row list.
+    // `version` bumps after measurements land; `rows` rebuilds the row list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, version])
+  }, [rows, version])
 
   const scheduleLayoutBump = useCallback(() => {
     if (flushRef.current) return
