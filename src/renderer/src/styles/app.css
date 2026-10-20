@@ -1927,6 +1927,8 @@ select.rly-input {
 }
 
 .rly-effective-row > span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--text-3);
 }
 
@@ -1953,6 +1955,14 @@ select.rly-input {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.rly-memory-path {
+  display: block;
+  text-align: left;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.5;
 }
 
 .rly-allowed-tools {

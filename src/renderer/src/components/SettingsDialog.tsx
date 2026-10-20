@@ -265,6 +265,37 @@ function SettingsBody(): React.JSX.Element | null {
                   <span />
                 </button>
               </label>
+
+              <label className="rly-field-label">长期记忆</label>
+              <p className="rly-hint">
+                每轮对话结束后自动整理项目记忆与用户画像；新记忆在下次启动会话时注入模型（约
+                2000 tokens）。当前工作区 {bootstrap.memory.projectCount} 条，用户画像{' '}
+                {bootstrap.memory.userCount} 条。
+              </p>
+              <div className="rly-effective">
+                <div className="rly-effective-row">
+                  <span>记忆库</span>
+                  <span
+                    className="rly-effective-value rly-memory-path"
+                    title={bootstrap.memory.dir}
+                  >
+                    {bootstrap.memory.dir}
+                  </span>
+                </div>
+                <div className="rly-effective-row">
+                  <span>工作区镜像</span>
+                  <span
+                    className="rly-effective-value rly-memory-path"
+                    title={bootstrap.memory.mirror}
+                  >
+                    {bootstrap.memory.mirror}
+                  </span>
+                </div>
+              </div>
+              <p className="rly-hint">
+                记忆以 JSON 保存，可直接编辑；把条目的 <code>enabled</code> 改为{' '}
+                <code>false</code> 即可停用。工作区镜像仅供阅读，手工修改会在下次整理时被覆盖。
+              </p>
             </section>
           ) : null}
 

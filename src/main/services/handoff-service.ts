@@ -67,7 +67,8 @@ interface TranscriptEntry {
   text: string
 }
 
-function eventToEntry(envelope: RelayEvent): TranscriptEntry | null {
+/** One condensed event line; shared with the memory distiller. */
+export function eventToEntry(envelope: RelayEvent): TranscriptEntry | null {
   const event = envelope.event
   switch (event.type) {
     case 'user_message':

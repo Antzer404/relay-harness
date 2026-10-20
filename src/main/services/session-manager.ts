@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type {
   HandoffDoc,
   HarnessEvent,
+  MemoryInfo,
   PermissionDecision,
   RelayEvent,
   SessionDetail,
@@ -18,6 +19,7 @@ import { readSdkInfo, resolveClaudeExecutable } from '../runtime/binary'
 import type { ConfigService } from './config-service'
 import { deepSeekHandoffGenerator } from './handoff-service'
 import { HandoffStore } from './handoff-store'
+import { MemoryManager } from './memory-manager'
 import { SessionStore } from './session-store'
 
 export class RelayError extends Error {
@@ -68,6 +70,7 @@ export class SessionManager {
   private readonly runtime = new ClaudeAgentRuntime()
   private readonly store: SessionStore
   private readonly handoffs: HandoffStore
+  private readonly memory: MemoryManager
   private current: SessionSummary | null = null
   private readonly permissionSuggestions = new Map<string, PendingGrant>()
   private seq = 0
@@ -80,6 +83,19 @@ export class SessionManager {
   ) {
     this.store = new SessionStore(options.userDataDir)
     this.handoffs = new HandoffStore(options.userDataDir)
+    this.memory = new MemoryManager({
+      userDataDir: options.userDataDir,
+      loadEvents: (sessionId) => this.store.loadEvents(sessionId),
+      getRecord: (sessionId) => this.store.get(sessionId),
+      getCredential: () => ({
+        apiKey: this.resolveApiKey(),
+        baseUrl: this.config.getSettings().baseUrl,
+        fallbackModel: this.config.getSettings().model
+      }),
+      note: (sessionId, message) =>
+        this.emitSynthetic(sessionId, { type: 'memory_note', message }),
+      log: (message) => console.warn(`[relay] ${message}`)
+    })
     this.runtime.onEvent((sessionId, event) => this.handleRuntimeEvent(sessionId, event))
   }
 
@@ -93,6 +109,12 @@ export class SessionManager {
 
   getSessions(): SessionRecord[] {
     return this.store.list()
+  }
+
+  /** Paths and counts of the long-term memory shown in settings. */
+  getMemoryInfo(cwd?: string): MemoryInfo {
+    const target = cwd ?? this.current?.cwd ?? this.config.getSettings().workspace
+    return this.memory.info(target)
   }
 
   loadSession(sessionId: string): SessionDetail {
@@ -147,9 +169,12 @@ export class SessionManager {
       })
 
     // A follow-up session carries the handoff document inside its system
-    // prompt; the workspace's own append stays after it.
+    // prompt; long-term memory goes first as background, the workspace's own
+    // append stays after both.
     const handoff = this.handoffs.findForTarget(record.id)
     const appendParts: string[] = []
+    const memoryBlock = this.memory.injectionBlock(cwd)
+    if (memoryBlock) appendParts.push(memoryBlock)
     if (handoff) appendParts.push(handoffContextBlock(handoff))
     if (effective.systemPromptAppend) appendParts.push(effective.systemPromptAppend)
     const systemPromptAppend = appendParts.join('\n\n').trim() || undefined
@@ -367,6 +392,7 @@ export class SessionManager {
   }
 
   async dispose(): Promise<void> {
+    this.memory.dispose()
     await this.runtime.disposeAll()
     this.current = null
     this.permissionSuggestions.clear()
@@ -406,12 +432,33 @@ export class SessionManager {
     }
     this.store.appendEvent(sessionId, envelope)
     this.options.emit(envelope)
+
+    // Long-term memory is distilled off the durable log, two minutes after
+    // the last turn; sending the next message never waits for it.
+    if (event.type === 'turn_end') this.memory.onTurnEnd(sessionId)
+  }
+
+  /** Persists a host-generated event (e.g. a memory notice) into the log. */
+  private emitSynthetic(sessionId: string, event: HarnessEvent): void {
+    const envelope: RelayEvent = {
+      sessionId,
+      seq: (this.seq += 1),
+      ts: Date.now(),
+      event
+    }
+    this.store.appendEvent(sessionId, envelope)
+    this.options.emit(envelope)
+  }
+
+  private resolveApiKey(): string | null {
+    return (
+      this.config.getApiKey() ??
+      (!this.options.isPackaged ? process.env.RELAY_DEV_API_KEY?.trim() || null : null)
+    )
   }
 
   private requireApiKey(): string {
-    const apiKey =
-      this.config.getApiKey() ??
-      (!this.options.isPackaged ? process.env.RELAY_DEV_API_KEY?.trim() || null : null)
+    const apiKey = this.resolveApiKey()
     if (!apiKey) {
       throw new RelayError('no_api_key', '尚未配置 DeepSeek API Key。请在设置中保存密钥。')
     }

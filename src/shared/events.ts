@@ -209,6 +209,52 @@ export interface HandoffDoc {
   usedAt: number | null
 }
 
+export type MemoryTrack = 'project' | 'user'
+
+export type MemoryCategory =
+  | 'decision'
+  | 'convention'
+  | 'pitfall'
+  | 'file-map'
+  | 'preference'
+  | 'correction'
+
+export const MEMORY_CATEGORY_LABELS: Record<MemoryCategory, string> = {
+  decision: '决策',
+  convention: '约定',
+  pitfall: '坑',
+  'file-map': '文件地图',
+  preference: '偏好',
+  correction: '纠正'
+}
+
+/**
+ * One distilled long-term memory. Project entries belong to a workspace; user
+ * entries are a cross-workspace portrait of how the user likes to work.
+ */
+export interface MemoryEntry {
+  id: string
+  track: MemoryTrack
+  category: MemoryCategory
+  content: string
+  /** 0–1; low-confidence entries are pruned first when a track is full. */
+  confidence: number
+  enabled: boolean
+  sourceSessionId: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+/** Paths and counts shown in settings; there is no in-app memory editor. */
+export interface MemoryInfo {
+  /** `userData/memory` — user.json plus projects/<key>.json. */
+  dir: string
+  /** `<cwd>/.relay/memory.md`, a read-only mirror of the project track. */
+  mirror: string
+  projectCount: number
+  userCount: number
+}
+
 export type SettingsSource = 'app' | 'workspace' | 'workspace-local'
 
 /**
@@ -293,6 +339,7 @@ export interface BootstrapState {
   sessions: SessionRecord[]
   /** Chromium has no GPU compositing; the renderer drops blur-heavy effects. */
   lowEffects: boolean
+  memory: MemoryInfo
   sdk: {
     version: string
     cliVersion: string | null

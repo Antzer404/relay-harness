@@ -76,6 +76,7 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
         session: sessions.getCurrent(),
         sessions: sessions.getSessions(),
         lowEffects: lowEffects(),
+        memory: sessions.getMemoryInfo(cwd),
         sdk: sessions.getSdkInfo()
       }
     })

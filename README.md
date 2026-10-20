@@ -2,7 +2,7 @@
 
 桌面 Agent Harness —— 以 Claude Agent SDK 为运行时、接入 DeepSeek，带双轨记忆与跨会话交接。
 
-> 状态：**M1 核心闭环完成，M2 交接链已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动与跨会话交接。详见 [M0 验证报告](docs/m0-verification.md)。
+> 状态：**M1 核心闭环完成，M2 交接链与双轨记忆已接入**。Electron + Agent SDK + DeepSeek 端点 + thinking 流 + 工具权限闭环已跑通；界面为现代毛玻璃布局，含配置分级、会话持久化、时间线虚拟滚动、跨会话交接与双轨长期记忆。详见 [M0 验证报告](docs/m0-verification.md)。
 
 ## 快速开始
 
@@ -45,11 +45,12 @@ Electron 44 起核心包不再带 postinstall，二进制改为首次加载时�
 - 权限模式即时切换：输入框左下的胶囊按钮在 `每次询问 / 仅规划 / 自动接受编辑` 之间切换，运行中的会话通过 SDK `setPermissionMode` 立刻生效并留下时间线记录；没有运行中会话时则保存为应用默认。plan 模式批准时（ExitPlanMode）按建议提供「自动接受编辑 / 逐次确认」两个选项。
 - 上下文填充率：开发者模式的事件轨迹抽屉顶部显示最近一轮的 context 占用（tokens、窗口、百分比、输入输出、缓存读写与估算成本）。
 - 跨会话交接：填充率达到阈值（默认 70%，低于 CLI 自动压缩的 75%）时输入框上方出现提示；点「交接」后用当前会话的持久事件生成结构化交接文档（目标 / 已完成 / 关键决策 / 涉及文件 / 待办 / 未解决），可编辑、重生成，确认后新建会话并把文档注入其系统提示；会话列表用「接力」标记来源，交接链可连续延长。生成走独立的模型调用，不占用当前会话上下文。
+- 双轨长期记忆：每个回合结束后 2 分钟去抖，用当前会话模型把增量对话整理成「项目记忆 + 用户画像」，以 `add / update / delete` 增量写入 `userData/memory`（JSON，按会话游标只处理未整理的事件）；工作区同时生成只读镜像 `.relay/memory.md`。新会话启动时按约 2000 tokens 预算注入系统提示，整理结果在时间线留一条通知。设置 → 通用可查看记忆目录与条数；直接编辑 JSON 即可修改，`enabled: false` 可停用。
 - 运行中可继续输入排队；Esc 中断；失败回合支持一键重试；开发者模式提供事件轨迹抽屉。
 - 运行时与 UI 解耦：SDK 消息先归一化为自有 `HarnessEvent`，后续替换运行时不动界面。
 - 打包：Windows NSIS/portable、macOS dmg；SDK 原生二进制通过 `asarUnpack` 解包并显式传入 `pathToClaudeCodeExecutable`。
 
-尚未实现（M2/M3）：双轨记忆、Cowork、签名公证与自动更新。
+尚未实现（M3）：Cowork、签名公证与自动更新。
 
 ## 目录
 
@@ -58,7 +59,7 @@ src/
   shared/        # 事件、IPC、设置类型与 zod schema（无 Electron/Node 依赖）
   main/
     runtime/     # RuntimeAdapter、ClaudeAgentRuntime、事件归一化、原生 CLI 路径
-    services/    # 配置/密钥（safeStorage）、会话生命周期
+    services/    # 配置/密钥（safeStorage）、会话生命周期、交接文档、双轨记忆
     ipc.ts       # 类型化 IPC 与入参校验
     window.ts
     index.ts
