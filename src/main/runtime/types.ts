@@ -15,6 +15,8 @@ export interface StartSessionOptions {
   permissionMode: VisiblePermissionMode
   /** Extra `.relay/settings.local.json` rules forwarded to the CLI. */
   allowedTools?: string[]
+  /** App-wide skill names hidden from the model via `skillOverrides: off`. */
+  disabledSkills?: string[]
   /** Appended to the preset `claude_code` system prompt. */
   systemPromptAppend?: string
   /** Project mode: workers exposed through the Agent tool. */

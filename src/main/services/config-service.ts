@@ -14,6 +14,7 @@ import type {
   WorkspaceConfigInfo,
   WorkspaceConfigValues
 } from '@shared/events'
+import { normalizeDisabledSkills } from './skills-service'
 
 interface PersistedApiKey {
   scheme: 'safeStorage'
@@ -29,7 +30,7 @@ export interface WindowState {
 }
 
 interface PersistedSettings {
-  version: 3
+  version: 4
   baseUrl: string
   model: string
   effort: EffortLevel
@@ -38,6 +39,8 @@ interface PersistedSettings {
   theme: ThemeMode
   devMode: boolean
   handoffThreshold: number
+  /** Skill names hidden from the model (CLI `skillOverrides: off`). */
+  disabledSkills: string[]
   apiKey?: PersistedApiKey | null
   windowState?: WindowState
 }
@@ -113,7 +116,7 @@ export class ConfigService {
 
   private defaults(): PersistedSettings {
     return {
-      version: 3,
+      version: 4,
       baseUrl: DEFAULT_BASE_URL,
       model: DEFAULT_MODEL,
       effort: 'high',
@@ -122,6 +125,7 @@ export class ConfigService {
       theme: 'system',
       devMode: false,
       handoffThreshold: DEFAULT_HANDOFF_THRESHOLD,
+      disabledSkills: [],
       apiKey: null
     }
   }
@@ -133,7 +137,7 @@ export class ConfigService {
       const base = this.defaults()
       const settings: PersistedSettings = {
         ...base,
-        version: 3,
+        version: 4,
         baseUrl: typeof raw.baseUrl === 'string' && raw.baseUrl ? raw.baseUrl : base.baseUrl,
         model: typeof raw.model === 'string' && raw.model ? raw.model : base.model,
         effort: raw.effort === 'high' || raw.effort === 'max' ? raw.effort : base.effort,
@@ -157,6 +161,7 @@ export class ConfigService {
           raw.handoffThreshold <= 90
             ? raw.handoffThreshold
             : base.handoffThreshold,
+        disabledSkills: normalizeDisabledSkills(raw.disabledSkills),
         // Never accept a persisted plaintext key.
         apiKey:
           isRecord(raw.apiKey) &&
@@ -199,7 +204,8 @@ export class ConfigService {
       workspace: this.data.workspace,
       theme: this.data.theme,
       devMode: this.data.devMode,
-      handoffThreshold: this.data.handoffThreshold
+      handoffThreshold: this.data.handoffThreshold,
+      disabledSkills: [...this.data.disabledSkills]
     }
   }
 
@@ -222,6 +228,28 @@ export class ConfigService {
   ensureWorkspace(): string {
     mkdirSync(this.data.workspace, { recursive: true })
     return this.data.workspace
+  }
+
+  /** `CLAUDE_CONFIG_DIR` handed to the CLI; also the home of user skills. */
+  getClaudeConfigDir(): string {
+    return join(this.userDataDir, 'claude-config')
+  }
+
+  /** User-level skills folder the CLI discovers (`<config dir>/skills`). */
+  getSkillsDir(): string {
+    return join(this.getClaudeConfigDir(), 'skills')
+  }
+
+  /** App-wide skill toggle; persisted to settings.json. */
+  setSkillEnabled(name: string, enabled: boolean): RelaySettings {
+    const clean = normalizeDisabledSkills([name])[0]
+    if (!clean) return this.getSettings()
+    const disabled = new Set(this.data.disabledSkills)
+    if (enabled) disabled.delete(clean)
+    else disabled.add(clean)
+    this.data.disabledSkills = normalizeDisabledSkills([...disabled])
+    this.persist()
+    return this.getSettings()
   }
 
   getWindowState(): WindowState | null {

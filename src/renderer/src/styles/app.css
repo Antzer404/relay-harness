@@ -1979,6 +1979,39 @@ select.rly-input {
   line-height: 1.5;
 }
 
+.rly-skill-row {
+  align-items: flex-start;
+}
+
+.rly-skill-row > div {
+  min-width: 0;
+}
+
+.rly-skill-row p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rly-skill-row .rly-switch {
+  margin-top: 3px;
+}
+
+.rly-skill-scope {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-3);
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+
 .rly-allowed-tools {
   padding: 10px 12px;
   border-radius: 10px;

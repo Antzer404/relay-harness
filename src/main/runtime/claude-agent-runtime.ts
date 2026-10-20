@@ -18,6 +18,7 @@ import type {
 } from '@shared/events'
 import { EventNormalizer } from './normalizer'
 import { describeRuntimeFailure } from './error-text'
+import { buildSkillOverrides } from '../services/skills-service'
 import type {
   RuntimeAdapter,
   RuntimeSessionHandle,
@@ -247,6 +248,14 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       { teamMode: options.teamMode === true }
     )
 
+    // 'user' is needed for the CLI to discover user-level skills under
+    // CLAUDE_CONFIG_DIR/skills; that folder belongs to Relay (not the host's
+    // ~/.claude), so loading its settings is safe. Skill on/off choices ride
+    // along as flag settings.
+    const skillOverrides = options.disabledSkills?.length
+      ? buildSkillOverrides(options.disabledSkills)
+      : null
+
     const queryOptions = {
       cwd: options.cwd,
       model: options.model,
@@ -258,7 +267,10 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         preset: 'claude_code' as const,
         ...(options.systemPromptAppend ? { append: options.systemPromptAppend } : {})
       },
-      settingSources: ['project' as const],
+      settingSources: ['user' as const, 'project' as const],
+      ...(skillOverrides && Object.keys(skillOverrides).length > 0
+        ? { settings: { skillOverrides } }
+        : {}),
       ...(options.allowedTools && options.allowedTools.length > 0
         ? { allowedTools: options.allowedTools }
         : {}),

@@ -13,6 +13,7 @@ import {
   sessionIdSchema,
   setPermissionModeSchema,
   settingsPatchSchema,
+  skillEnabledSchema,
   startSessionSchema,
   updateHandoffSchema,
   windowControlSchema,
@@ -262,6 +263,19 @@ export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
       const host = hostOf(hosts, event)
       const { cwd, rule } = removeAllowedToolSchema.parse(raw)
       return config.removeWorkspaceAllowedTool(scopedCwd(host, config, cwd), rule)
+    })
+  )
+
+  ipcMain.handle(IPC_CHANNELS.listSkills, (event) =>
+    run(() => hostOf(hosts, event).sessions.listSkills())
+  )
+
+  ipcMain.handle(IPC_CHANNELS.setSkillEnabled, (event, raw: unknown) =>
+    run(() => {
+      const host = hostOf(hosts, event)
+      const { name, enabled } = skillEnabledSchema.parse(raw)
+      host.sessions.setSkillEnabled(name, enabled)
+      return host.sessions.listSkills()
     })
   )
 

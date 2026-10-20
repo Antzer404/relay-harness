@@ -12,6 +12,7 @@ import type {
   SessionRecord,
   SessionSummary,
   SetPermissionModeResult,
+  SkillListInfo,
   StartSessionOptions,
   VisiblePermissionMode
 } from '@shared/events'
@@ -29,6 +30,7 @@ import {
   projectLeaderPrompt
 } from './project-roster'
 import { SessionStore } from './session-store'
+import { collectSkillList } from './skills-service'
 
 export class RelayError extends Error {
   constructor(
@@ -186,6 +188,25 @@ export class SessionManager {
     return this.memory.info(target)
   }
 
+  /**
+   * Skills the CLI would discover for this window: the workspace's
+   * `.claude/skills` plus the user-level folder under CLAUDE_CONFIG_DIR.
+   */
+  listSkills(cwd?: string): SkillListInfo {
+    const target =
+      cwd ?? this.workspaceOverride ?? this.current?.cwd ?? this.config.getSettings().workspace
+    return collectSkillList({
+      globalDir: this.config.getSkillsDir(),
+      workspaceDir: join(target, '.claude', 'skills'),
+      disabled: this.config.getSettings().disabledSkills
+    })
+  }
+
+  /** App-wide skill toggle; the next started session picks it up. */
+  setSkillEnabled(name: string, enabled: boolean): void {
+    this.config.setSkillEnabled(name, enabled)
+  }
+
   loadSession(sessionId: string): SessionDetail {
     const record = this.store.get(sessionId)
     if (!record || !this.inScope(record)) throw new RelayError('session_missing', '找不到这个会话')
@@ -278,6 +299,7 @@ export class SessionManager {
         effort: effective.effort,
         permissionMode: effective.permissionMode,
         allowedTools: effective.allowedTools,
+        disabledSkills: settings.disabledSkills,
         systemPromptAppend,
         ...(roster
           ? {
@@ -287,7 +309,7 @@ export class SessionManager {
           : {}),
         baseUrl: settings.baseUrl,
         apiKey,
-        claudeConfigDir: join(this.options.userDataDir, 'claude-config'),
+        claudeConfigDir: this.config.getClaudeConfigDir(),
         cliSessionId: record.cliSessionId ?? undefined,
         executablePath: resolveClaudeExecutable(this.options.isPackaged)
       })

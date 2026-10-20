@@ -224,6 +224,33 @@ export interface SetPermissionModeResult {
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 
+export type SkillScope = 'global' | 'workspace'
+
+/**
+ * One skill folder discovered on disk (`<dir>/<name>/SKILL.md`). `name` is
+ * the folder name — the id the CLI's `skillOverrides` matches by.
+ */
+export interface SkillInfo {
+  name: string
+  /** Frontmatter `name` when it differs from the folder name (display only). */
+  title: string | null
+  description: string
+  scope: SkillScope
+  /** Absolute path of the SKILL.md file. */
+  path: string
+  /** Derived from the app-wide disabled list. */
+  enabled: boolean
+}
+
+/** What the settings tab shows; paths are included so the user can find them. */
+export interface SkillListInfo {
+  /** `CLAUDE_CONFIG_DIR/skills`, the CLI's user-level skills folder. */
+  globalDir: string
+  /** `<cwd>/.claude/skills`. */
+  workspaceDir: string
+  skills: SkillInfo[]
+}
+
 export interface RelaySettings {
   baseUrl: string
   model: string
@@ -234,6 +261,8 @@ export interface RelaySettings {
   devMode: boolean
   /** Context fill (percent) at which the composer suggests handing off. */
   handoffThreshold: number
+  /** App-wide skill names hidden from the model (CLI `skillOverrides: off`). */
+  disabledSkills: string[]
 }
 
 /** Below the CLI auto-compact window (786432 / 1M = 75%). */

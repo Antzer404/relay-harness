@@ -129,3 +129,10 @@ export const permissionDecisionSchema = z
     suggestionIndex: z.number().int().min(0).max(50).optional()
   })
   .strict()
+
+export const skillEnabledSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    enabled: z.boolean()
+  })
+  .strict()

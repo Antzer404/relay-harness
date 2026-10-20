@@ -29,6 +29,9 @@ const api: RelayApi = {
     ipcRenderer.invoke(IPC_CHANNELS.clearWorkspaceConfig, { cwd }),
   removeAllowedTool: (cwd, rule) =>
     ipcRenderer.invoke(IPC_CHANNELS.removeAllowedTool, { cwd, rule }),
+  listSkills: () => ipcRenderer.invoke(IPC_CHANNELS.listSkills),
+  setSkillEnabled: (name, enabled) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setSkillEnabled, { name, enabled }),
   requestHandoff: () => ipcRenderer.invoke(IPC_CHANNELS.requestHandoff),
   listHandoffs: (sessionId) =>
     ipcRenderer.invoke(IPC_CHANNELS.listHandoffs, sessionId ? { sessionId } : {}),

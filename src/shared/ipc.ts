@@ -10,6 +10,7 @@ import type {
   SessionRecord,
   SessionSummary,
   SetPermissionModeResult,
+  SkillListInfo,
   StartSessionOptions,
   VisiblePermissionMode,
   WorkspaceConfigInfo,
@@ -37,6 +38,8 @@ export const IPC_CHANNELS = {
   writeWorkspaceConfig: 'relay:write-workspace-config',
   clearWorkspaceConfig: 'relay:clear-workspace-config',
   removeAllowedTool: 'relay:remove-allowed-tool',
+  listSkills: 'relay:list-skills',
+  setSkillEnabled: 'relay:set-skill-enabled',
   requestHandoff: 'relay:request-handoff',
   listHandoffs: 'relay:list-handoffs',
   updateHandoff: 'relay:update-handoff',
@@ -82,6 +85,10 @@ export interface RelayApi {
     cwd: string | undefined,
     rule: string
   ): Promise<IpcResult<WorkspaceConfigInfo>>
+  /** Skills discovered for this window's workspace (global + project dirs). */
+  listSkills(): Promise<IpcResult<SkillListInfo>>
+  /** App-wide toggle; returns the refreshed list. Applies on the next session. */
+  setSkillEnabled(name: string, enabled: boolean): Promise<IpcResult<SkillListInfo>>
   /** Generates a handoff document from the active session's event log. */
   requestHandoff(): Promise<IpcResult<HandoffDoc>>
   listHandoffs(sessionId?: string): Promise<IpcResult<HandoffDoc[]>>

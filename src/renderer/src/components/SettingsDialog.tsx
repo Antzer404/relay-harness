@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   EFFORT_OPTIONS,
   MODEL_OPTIONS,
   PERMISSION_OPTIONS,
   THEME_OPTIONS,
   type EffortLevel,
+  type SkillListInfo,
   type ThemeMode,
   type VisiblePermissionMode,
   type WorkspaceConfigValues
@@ -12,12 +13,13 @@ import {
 import { useRelayStore } from '../store/useRelayStore'
 import { IconClose } from './icons'
 
-type Tab = 'general' | 'model' | 'workspace' | 'key' | 'about'
+type Tab = 'general' | 'model' | 'workspace' | 'skills' | 'key' | 'about'
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'general', label: '通用' },
   { id: 'model', label: '模型' },
   { id: 'workspace', label: '工作区' },
+  { id: 'skills', label: '技能' },
   { id: 'key', label: 'API Key' },
   { id: 'about', label: '关于' }
 ]
@@ -78,6 +80,41 @@ function SettingsBody(): React.JSX.Element | null {
     workspaceConfig?.values.permissionMode ?? ''
   )
   const [wsPrompt, setWsPrompt] = useState(workspaceConfig?.values.systemPromptAppend ?? '')
+
+  const [skills, setSkills] = useState<SkillListInfo | null>(null)
+  const [skillsLoading, setSkillsLoading] = useState(false)
+
+  const loadSkills = async (): Promise<void> => {
+    setSkillsLoading(true)
+    try {
+      const result = await window.relay.listSkills()
+      if (result.ok) setSkills(result.data)
+      else setStatus({ kind: 'error', message: result.error.message })
+    } finally {
+      setSkillsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (tab === 'skills' && skills === null) void loadSkills()
+    // Only load once per dialog open; the refresh button re-scans on demand.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  const toggleSkill = async (name: string, enabled: boolean): Promise<void> => {
+    setSkillsLoading(true)
+    try {
+      const result = await window.relay.setSkillEnabled(name, enabled)
+      if (result.ok) {
+        setSkills(result.data)
+        setStatus(null)
+      } else {
+        setStatus({ kind: 'error', message: result.error.message })
+      }
+    } finally {
+      setSkillsLoading(false)
+    }
+  }
 
   if (!bootstrap || !settings || !effective) return null
 
@@ -554,6 +591,96 @@ function SettingsBody(): React.JSX.Element | null {
                   清除配置
                 </button>
               </div>
+            </section>
+          ) : null}
+
+          {tab === 'skills' ? (
+            <section className="rly-form">
+              <h2>技能</h2>
+              <p className="rly-hint">
+                技能是带 SKILL.md 的文件夹：系统提示里只常驻名称与描述，模型需要时再读取完整内容。
+                开关对所有窗口和工作区统一生效。
+              </p>
+
+              <div className="rly-effective">
+                <div className="rly-effective-row">
+                  <span>全局技能目录</span>
+                  <span
+                    className="rly-effective-value rly-memory-path"
+                    title={skills?.globalDir ?? ''}
+                  >
+                    {skills?.globalDir ?? '…'}
+                  </span>
+                </div>
+                <div className="rly-effective-row">
+                  <span>工作区技能目录</span>
+                  <span
+                    className="rly-effective-value rly-memory-path"
+                    title={skills?.workspaceDir ?? ''}
+                  >
+                    {skills?.workspaceDir ?? '…'}
+                  </span>
+                </div>
+              </div>
+
+              {skills === null ? (
+                <p className="rly-hint">{skillsLoading ? '正在扫描技能…' : '正在读取…'}</p>
+              ) : skills.skills.length === 0 ? (
+                <p className="rly-hint">
+                  未发现技能。把 <code>&lt;名称&gt;/SKILL.md</code>{' '}
+                  放进上面的目录，然后点「刷新」。
+                </p>
+              ) : (
+                <>
+                  <p className="rly-hint">
+                    已发现 {skills.skills.length} 个技能，启用{' '}
+                    {skills.skills.filter((entry) => entry.enabled).length} 个。
+                  </p>
+                  {skills.skills.map((skill) => (
+                    <div
+                      key={`${skill.scope}:${skill.name}`}
+                      className="rly-toggle-row rly-skill-row"
+                    >
+                      <div>
+                        <span>
+                          {skill.title ?? skill.name}
+                          <em className="rly-skill-scope">
+                            {skill.scope === 'global' ? '全局' : '工作区'}
+                          </em>
+                        </span>
+                        <p title={skill.description || undefined}>
+                          {skill.description || '（无描述）'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={skill.enabled}
+                        aria-label={`${skill.enabled ? '停用' : '启用'}技能 ${skill.name}`}
+                        className={`rly-switch${skill.enabled ? ' is-on' : ''}`}
+                        disabled={skillsLoading}
+                        onClick={() => void toggleSkill(skill.name, !skill.enabled)}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <div className="rly-inline">
+                <button
+                  type="button"
+                  className="rly-btn"
+                  disabled={skillsLoading}
+                  onClick={() => void loadSkills()}
+                >
+                  {skillsLoading ? '扫描中…' : '刷新'}
+                </button>
+              </div>
+              <p className="rly-hint">
+                开关更改在下次启动会话时生效；技能按文件夹名识别，同名技能一起启停。
+              </p>
             </section>
           ) : null}
 
