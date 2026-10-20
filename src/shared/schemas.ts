@@ -86,6 +86,10 @@ export const sendSchema = z.object({
   interrupt: z.boolean().optional()
 })
 
+export const openProjectSchema = z.object({
+  mode: z.enum(['auto', 'pick']).optional()
+})
+
 export const setPermissionModeSchema = z
   .object({
     mode: z.enum(['default', 'plan', 'acceptEdits'])

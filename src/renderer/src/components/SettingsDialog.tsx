@@ -729,6 +729,13 @@ function SettingsBody(): React.JSX.Element | null {
           {tab === 'about' ? (
             <section className="rly-form">
               <h2>关于</h2>
+              <div className="rly-about-brand">
+                <span className="rly-about-logo" aria-hidden="true" />
+                <div>
+                  <strong>Relay ｜ 接力</strong>
+                  <em>Agent Harness · v{bootstrap.appVersion}</em>
+                </div>
+              </div>
               <div className="rly-about">
                 <div>
                   <span>Relay 接力</span>

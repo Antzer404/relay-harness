@@ -8,7 +8,8 @@ const api: RelayApi = {
   clearApiKey: () => ipcRenderer.invoke(IPC_CHANNELS.clearApiKey),
   saveSettings: (patch) => ipcRenderer.invoke(IPC_CHANNELS.saveSettings, patch),
   chooseWorkspace: () => ipcRenderer.invoke(IPC_CHANNELS.chooseWorkspace),
-  openProjectWindow: () => ipcRenderer.invoke(IPC_CHANNELS.openProjectWindow),
+  openProjectWindow: (options) =>
+    ipcRenderer.invoke(IPC_CHANNELS.openProjectWindow, options ?? {}),
   startSession: (options) => ipcRenderer.invoke(IPC_CHANNELS.startSession, options ?? {}),
   stopSession: () => ipcRenderer.invoke(IPC_CHANNELS.stopSession),
   send: (text, options) =>

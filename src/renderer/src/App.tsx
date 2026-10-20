@@ -94,7 +94,7 @@ export function App(): React.JSX.Element {
             </>
           ) : (
             <div className="rly-booting">
-              <span className="rly-booting-dot" />
+              <span className="rly-booting-logo" aria-hidden="true" />
               <span>正在读取本机配置…</span>
             </div>
           )}

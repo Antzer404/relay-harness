@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import { useRelayStore } from '../store/useRelayStore'
 import { baseName } from '../lib/format'
 import {
+  IconChevron,
   IconFolder,
   IconGear,
   IconMaximize,
@@ -72,6 +74,32 @@ export function TopBar(): React.JSX.Element {
   const workspace =
     windowKind === 'project' ? project?.folder : bootstrap?.settings.workspace
   const activeTitle = sessions.find((record) => record.id === activeId)?.title
+  const lastProject = bootstrap?.settings.lastProjectFolder ?? null
+  const [projectMenu, setProjectMenu] = useState(false)
+  const projectRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!projectMenu) return
+    const onDown = (event: MouseEvent): void => {
+      if (projectRef.current && !projectRef.current.contains(event.target as Node)) {
+        setProjectMenu(false)
+      }
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setProjectMenu(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [projectMenu])
+
+  const runProject = (mode: 'auto' | 'pick'): void => {
+    setProjectMenu(false)
+    void openProject(mode)
+  }
 
   return (
     <header className="rly-topbar" data-platform={platform}>
@@ -125,15 +153,54 @@ export function TopBar(): React.JSX.Element {
           <span>{PHASE_LABEL[phase]}</span>
         </span>
         {windowKind === 'main' ? (
-          <button
-            type="button"
-            className="rly-ghost-btn rly-project-btn"
-            title="打开 Project 窗口"
-            onClick={() => void openProject()}
-          >
-            <IconProject size={14} />
-            Project
-          </button>
+          <div className="rly-project-split" ref={projectRef}>
+            <button
+              type="button"
+              className="rly-ghost-btn rly-project-btn"
+              title={
+                lastProject
+                  ? `打开上次的 Project：${lastProject}`
+                  : '选择 Project 工作文件夹'
+              }
+              onClick={() => runProject(lastProject ? 'auto' : 'pick')}
+            >
+              <IconProject size={14} />
+              Project
+            </button>
+            <button
+              type="button"
+              className="rly-ghost-btn rly-project-caret"
+              aria-label="Project 选项"
+              aria-haspopup="menu"
+              aria-expanded={projectMenu}
+              onClick={() => setProjectMenu((value) => !value)}
+            >
+              <IconChevron size={12} />
+            </button>
+            {projectMenu ? (
+              <div className="rly-project-pop" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rly-project-option"
+                  disabled={!lastProject}
+                  onClick={() => runProject('auto')}
+                >
+                  <span>上次目录</span>
+                  <em>{lastProject ? baseName(lastProject) : '暂无记录'}</em>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rly-project-option"
+                  onClick={() => runProject('pick')}
+                >
+                  <span>选择其他文件夹…</span>
+                  <em>浏览</em>
+                </button>
+              </div>
+            ) : null}
+          </div>
         ) : null}
         {devMode ? (
           <button

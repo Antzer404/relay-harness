@@ -4,7 +4,6 @@ import { useVirtualTimeline } from '../hooks/useVirtualTimeline'
 import { groupTimeline, type TimelineRow } from '../lib/timeline-groups'
 import { ProcessGroup } from './ProcessGroup'
 import { TimelineItemView } from './TimelineItemView'
-import { IconSpark } from './icons'
 
 function renderRow(row: TimelineRow): React.JSX.Element | null {
   if (row.kind === 'group') return <ProcessGroup group={row} />
@@ -50,9 +49,7 @@ function Welcome(): React.JSX.Element {
 
   return (
     <div className="rly-welcome">
-      <div className="rly-welcome-mark" aria-hidden="true">
-        <IconSpark size={22} />
-      </div>
+      <div className="rly-welcome-mark" aria-hidden="true" />
       <h1 className="rly-welcome-title">开始一项工作</h1>
       <p className="rly-welcome-sub">
         {hasKey

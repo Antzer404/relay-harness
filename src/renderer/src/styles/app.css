@@ -18,6 +18,9 @@
   --accent-strong: #b0651f;
   --accent-soft: rgba(201, 117, 42, 0.12);
   --accent-soft-strong: rgba(201, 117, 42, 0.2);
+  /* Logo orange, kept separate from the text accent for contrast. */
+  --brand: #fe5c03;
+  --brand-soft: rgba(254, 92, 3, 0.16);
   --danger: #c2473f;
   --danger-soft: rgba(194, 71, 63, 0.1);
   --success: #2d9165;
@@ -55,6 +58,8 @@
   --accent-strong: #f0b273;
   --accent-soft: rgba(226, 160, 95, 0.14);
   --accent-soft-strong: rgba(226, 160, 95, 0.24);
+  --brand: #ff6a1c;
+  --brand-soft: rgba(255, 106, 28, 0.2);
   --danger: #e07068;
   --danger-soft: rgba(224, 112, 104, 0.12);
   --success: #58b98b;
@@ -250,20 +255,12 @@ textarea {
 }
 
 .rly-brand-mark {
-  width: 20px;
-  height: 20px;
-  border-radius: 7px;
-  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
-  box-shadow: 0 2px 8px rgba(201, 117, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  position: relative;
-}
-
-.rly-brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.85);
+  width: 22px;
+  height: 22px;
+  background: var(--brand);
+  -webkit-mask: url('../assets/logo.png') center / contain no-repeat;
+  mask: url('../assets/logo.png') center / contain no-repeat;
+  filter: drop-shadow(0 2px 5px var(--brand-soft));
 }
 
 .rly-brand-name {
@@ -379,6 +376,82 @@ textarea {
 .rly-ghost-btn:hover {
   color: var(--text);
   border-color: var(--border-strong);
+}
+
+.rly-project-split {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.rly-project-btn {
+  border-radius: 9px 0 0 9px;
+  border-right: 0;
+}
+
+.rly-project-caret {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 0 9px 9px 0;
+  color: var(--text-3);
+}
+
+.rly-project-caret:hover {
+  color: var(--text);
+}
+
+.rly-project-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 236px;
+  padding: 5px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+.rly-project-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.rly-project-option:hover:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.rly-project-option:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.rly-project-option span {
+  font-size: 12.5px;
+}
+
+.rly-project-option em {
+  overflow: hidden;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rly-window-controls {
@@ -684,16 +757,26 @@ textarea {
 }
 
 .rly-welcome-mark {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-soft-strong);
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1), 0 14px 44px var(--brand-soft);
   margin-bottom: 18px;
+}
+
+.rly-welcome-mark::after {
+  content: "";
+  width: 38px;
+  height: 38px;
+  background: var(--brand);
+  -webkit-mask: url('../assets/logo.png') center / contain no-repeat;
+  mask: url('../assets/logo.png') center / contain no-repeat;
 }
 
 .rly-welcome-title {
@@ -2178,6 +2261,44 @@ select.rly-input {
   opacity: 0.5;
 }
 
+.rly-about-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.rly-about-logo {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  background: var(--brand);
+  -webkit-mask: url('../assets/logo.png') center / contain no-repeat;
+  mask: url('../assets/logo.png') center / contain no-repeat;
+  filter: drop-shadow(0 4px 12px var(--brand-soft));
+}
+
+.rly-about-brand div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rly-about-brand strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.rly-about-brand em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
 .rly-about {
   display: flex;
   flex-direction: column;
@@ -2486,11 +2607,12 @@ select.rly-input {
   color: var(--text-3);
 }
 
-.rly-booting-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
+.rly-booting-logo {
+  width: 22px;
+  height: 22px;
+  background: var(--brand);
+  -webkit-mask: url('../assets/logo.png') center / contain no-repeat;
+  mask: url('../assets/logo.png') center / contain no-repeat;
   animation: rly-pulse 1.4s ease-in-out infinite;
 }
 
@@ -2772,7 +2894,8 @@ html[data-lowfx='1'] .rly-trace-drawer {
   animation: none;
 }
 
-html[data-lowfx='1'] .rly-mode-pop {
+html[data-lowfx='1'] .rly-mode-pop,
+html[data-lowfx='1'] .rly-project-pop {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   animation: none;

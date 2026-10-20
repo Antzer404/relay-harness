@@ -265,6 +265,8 @@ export interface RelaySettings {
   handoffThreshold: number
   /** App-wide skill names hidden from the model (CLI `skillOverrides: off`). */
   disabledSkills: string[]
+  /** Last Project window folder; the Project button reopens it directly. */
+  lastProjectFolder: string | null
 }
 
 /** Below the CLI auto-compact window (786432 / 1M = 75%). */

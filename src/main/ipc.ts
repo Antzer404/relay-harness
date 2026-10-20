@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { existsSync } from 'node:fs'
 import type { IpcResult } from '@shared/events'
 import { IPC_CHANNELS } from '@shared/ipc'
 import {
@@ -6,6 +7,7 @@ import {
   apiKeySchema,
   handoffIdSchema,
   listHandoffsSchema,
+  openProjectSchema,
   permissionDecisionSchema,
   removeAllowedToolSchema,
   renameSessionSchema,
@@ -142,19 +144,36 @@ export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.openProjectWindow, (event) =>
+  ipcMain.handle(IPC_CHANNELS.openProjectWindow, (event, raw: unknown) =>
     run(async () => {
       const host = hostOf(hosts, event)
       if (host.kind !== 'main') {
         throw new RelayError('project_window', '只有主窗口可以打开 Project')
       }
-      const options = {
-        title: '选择 Project 工作文件夹',
-        properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
+      const { mode } = openProjectSchema.parse(raw ?? {})
+      let folder: string | null = null
+
+      // The Project button reopens the last folder directly; the folder can
+      // have been moved or deleted since, in which case fall back to picking.
+      if (mode !== 'pick') {
+        const last = config.getSettings().lastProjectFolder
+        if (last && existsSync(last)) folder = last
       }
-      const result = await dialog.showOpenDialog(host.window, options)
-      if (result.canceled || !result.filePaths[0]) return false
-      hosts.openProject(result.filePaths[0])
+
+      if (!folder) {
+        const options = {
+          title: '选择 Project 工作文件夹',
+          properties: ['openDirectory', 'createDirectory'] as Array<
+            'openDirectory' | 'createDirectory'
+          >
+        }
+        const result = await dialog.showOpenDialog(host.window, options)
+        if (result.canceled || !result.filePaths[0]) return false
+        folder = result.filePaths[0]
+      }
+
+      config.setLastProjectFolder(folder)
+      hosts.openProject(folder)
       return true
     })
   )

@@ -121,7 +121,7 @@ export interface RelayState {
   ) => Promise<void>
   openDrawer: (drawer: RightDrawer) => void
   openAgent: (agentId: string) => void
-  openProject: () => Promise<void>
+  openProject: (mode?: 'auto' | 'pick') => Promise<void>
   setThemeMode: (mode: ThemeMode) => Promise<void>
   setDevMode: (enabled: boolean) => Promise<void>
   setSidebarOpen: (open: boolean) => void
@@ -864,11 +864,14 @@ export const useRelayStore = create<RelayState>((set, get) => ({
 
   openAgent: (agentId) => set({ activeAgentId: agentId, drawer: 'agent' }),
 
-  openProject: async () => {
-    const result = await window.relay.openProjectWindow()
+  openProject: async (mode = 'auto') => {
+    const result = await window.relay.openProjectWindow({ mode })
     if (!result.ok) {
       set((s) => ({ items: addItem(s.items, errorItem(result.error.message)) }))
+      return
     }
+    // The main process records the folder; refresh so the button/menu show it.
+    if (result.data) await get().refreshBootstrap()
   },
 
   setThemeMode: async (mode) => {

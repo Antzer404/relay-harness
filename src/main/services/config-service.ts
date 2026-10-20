@@ -30,7 +30,7 @@ export interface WindowState {
 }
 
 interface PersistedSettings {
-  version: 4
+  version: 5
   baseUrl: string
   model: string
   effort: EffortLevel
@@ -41,6 +41,8 @@ interface PersistedSettings {
   handoffThreshold: number
   /** Skill names hidden from the model (CLI `skillOverrides: off`). */
   disabledSkills: string[]
+  /** Last Project folder, used by the Project button for a one-click reopen. */
+  lastProjectFolder: string | null
   apiKey?: PersistedApiKey | null
   windowState?: WindowState
 }
@@ -116,7 +118,7 @@ export class ConfigService {
 
   private defaults(): PersistedSettings {
     return {
-      version: 4,
+      version: 5,
       baseUrl: DEFAULT_BASE_URL,
       model: DEFAULT_MODEL,
       effort: 'high',
@@ -126,6 +128,7 @@ export class ConfigService {
       devMode: false,
       handoffThreshold: DEFAULT_HANDOFF_THRESHOLD,
       disabledSkills: [],
+      lastProjectFolder: null,
       apiKey: null
     }
   }
@@ -137,7 +140,7 @@ export class ConfigService {
       const base = this.defaults()
       const settings: PersistedSettings = {
         ...base,
-        version: 4,
+        version: 5,
         baseUrl: typeof raw.baseUrl === 'string' && raw.baseUrl ? raw.baseUrl : base.baseUrl,
         model: typeof raw.model === 'string' && raw.model ? raw.model : base.model,
         effort: raw.effort === 'high' || raw.effort === 'max' ? raw.effort : base.effort,
@@ -162,6 +165,10 @@ export class ConfigService {
             ? raw.handoffThreshold
             : base.handoffThreshold,
         disabledSkills: normalizeDisabledSkills(raw.disabledSkills),
+        lastProjectFolder:
+          typeof raw.lastProjectFolder === 'string' && raw.lastProjectFolder.trim()
+            ? raw.lastProjectFolder
+            : null,
         // Never accept a persisted plaintext key.
         apiKey:
           isRecord(raw.apiKey) &&
@@ -205,7 +212,8 @@ export class ConfigService {
       theme: this.data.theme,
       devMode: this.data.devMode,
       handoffThreshold: this.data.handoffThreshold,
-      disabledSkills: [...this.data.disabledSkills]
+      disabledSkills: [...this.data.disabledSkills],
+      lastProjectFolder: this.data.lastProjectFolder
     }
   }
 
@@ -223,6 +231,12 @@ export class ConfigService {
     }
     this.persist()
     return this.getSettings()
+  }
+
+  /** Records the folder a Project window was opened with, for one-click reopen. */
+  setLastProjectFolder(folder: string): void {
+    this.data.lastProjectFolder = folder
+    this.persist()
   }
 
   ensureWorkspace(): string {

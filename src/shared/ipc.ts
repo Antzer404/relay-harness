@@ -63,8 +63,8 @@ export interface RelayApi {
   clearApiKey(): Promise<IpcResult<void>>
   saveSettings(patch: SaveSettingsPatch): Promise<IpcResult<RelaySettings>>
   chooseWorkspace(): Promise<IpcResult<string | null>>
-  /** Main window only: picks a folder and opens (or focuses) its Project window. */
-  openProjectWindow(): Promise<IpcResult<boolean>>
+  /** Main window only: reopens the last Project folder or asks for one. */
+  openProjectWindow(options?: { mode?: 'auto' | 'pick' }): Promise<IpcResult<boolean>>
   startSession(options?: StartSessionOptions): Promise<IpcResult<SessionSummary>>
   stopSession(): Promise<IpcResult<void>>
   send(text: string, options?: { interrupt?: boolean }): Promise<IpcResult<void>>
