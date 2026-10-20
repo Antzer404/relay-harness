@@ -34,6 +34,7 @@ export const IPC_CHANNELS = {
   readWorkspaceConfig: 'relay:read-workspace-config',
   writeWorkspaceConfig: 'relay:write-workspace-config',
   clearWorkspaceConfig: 'relay:clear-workspace-config',
+  removeAllowedTool: 'relay:remove-allowed-tool',
   windowControl: 'relay:window-control',
   event: 'relay:event',
   permissionCancelled: 'relay:permission-cancelled',
@@ -68,6 +69,10 @@ export interface RelayApi {
     values: WorkspaceConfigValues
   ): Promise<IpcResult<WorkspaceConfigInfo>>
   clearWorkspaceConfig(cwd?: string): Promise<IpcResult<WorkspaceConfigInfo>>
+  removeAllowedTool(
+    cwd: string | undefined,
+    rule: string
+  ): Promise<IpcResult<WorkspaceConfigInfo>>
   windowControl(action: WindowControlAction): Promise<IpcResult<void>>
   onEvent(callback: (event: RelayEvent) => void): () => void
   onPermissionCancelled(callback: (requestId: string) => void): () => void

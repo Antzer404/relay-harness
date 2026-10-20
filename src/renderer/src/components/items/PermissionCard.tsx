@@ -13,8 +13,6 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
   const respond = useRelayStore((state) => state.respondPermission)
   const [showParams, toggleParams] = useItemOpen(permissionParamsKey(item.id), false)
 
-  const canAlways = item.suggestions.length > 0 && item.status === 'pending'
-
   // ExitPlanMode-style approvals offer "switch to mode X" suggestions; each
   // becomes its own button so the user picks the post-approval mode.
   const modeChoices: Array<{ mode: string; index: number }> = []
@@ -65,11 +63,12 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
 
           {modeChoices.length > 0 ? (
             <p className="rly-permission-scope">批准后会切换本次会话的权限模式</p>
-          ) : canAlways ? (
+          ) : (
             <p className="rly-permission-scope">
-              始终允许会写入本工作区的 <code>.relay/settings.local.json</code>
+              始终允许「{item.toolName}」的全部请求，并写入本工作区的{' '}
+              <code>.relay/settings.local.json</code>
             </p>
-          ) : null}
+          )}
 
           <div className="rly-permission-actions">
             <button
@@ -101,9 +100,8 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
               <button
                 type="button"
                 className="rly-btn rly-btn-primary"
-                disabled={!canAlways}
-                title={canAlways ? undefined : 'CLI 没有提供可持久化的授权范围'}
                 onClick={() => void respond(item.requestId, 'always')}
+                title={`允许「${item.toolName}」这个工具后续不再询问`}
               >
                 始终允许
               </button>

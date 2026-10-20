@@ -60,6 +60,7 @@ class AsyncQueue<T> implements AsyncIterable<T> {
 interface PendingPermission {
   resolve: (result: PermissionResult) => void
   cleanup: () => void
+  toolName: string
   rawSuggestions: PermissionUpdate[]
   toolUseId: string
 }
@@ -119,18 +120,32 @@ function describeSuggestion(update: PermissionUpdate): PermissionSuggestionView 
 }
 
 /**
- * Picks which permission suggestions an approval applies. "Always" without an
- * index applies everything the CLI proposed; with an index it applies only
- * that suggestion (used when the user picks a specific post-plan mode).
+ * Permission updates an approval applies to the CLI session.
+ *
+ * "Always" grants the whole tool (`WebFetch`, `Write`, …) instead of the
+ * CLI's per-target suggestion (`WebFetch(domain:…)`), so a second site or file
+ * does not prompt again. Plan approvals are the exception: their `setMode`
+ * suggestions switch the session's permission mode, optionally the one the
+ * user picked by index.
  */
-export function selectApprovalUpdates(
+export function buildPermissionUpdates(
+  toolName: string,
   suggestions: PermissionUpdate[],
   decision: Pick<PermissionDecision, 'decision' | 'suggestionIndex'>
 ): PermissionUpdate[] {
   if (decision.decision !== 'always') return []
-  if (decision.suggestionIndex === undefined) return suggestions
-  const chosen = suggestions[decision.suggestionIndex]
-  return chosen ? [chosen] : []
+  const modeSuggestions = suggestions.filter((update) => update.type === 'setMode')
+  if (modeSuggestions.length > 0) {
+    if (decision.suggestionIndex === undefined) return modeSuggestions
+    const chosen = suggestions[decision.suggestionIndex]
+    return chosen ? [chosen] : []
+  }
+  // Approving a plan must not leave a standing "always allow ExitPlanMode"
+  // grant; without a mode suggestion it is a one-off approval.
+  if (toolName === 'ExitPlanMode') return []
+  return [
+    { type: 'addRules', rules: [{ toolName }], behavior: 'allow', destination: 'session' }
+  ]
 }
 
 function buildEnv(options: StartSessionOptions): Record<string, string> {
@@ -216,7 +231,7 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         }
         signal.addEventListener('abort', onAbort, { once: true })
         const cleanup = (): void => signal.removeEventListener('abort', onAbort)
-        state.permissions.set(requestId, { resolve, cleanup, rawSuggestions, toolUseId: toolUseID })
+        state.permissions.set(requestId, { resolve, cleanup, toolName, rawSuggestions, toolUseId: toolUseID })
       })
     }
 
@@ -354,7 +369,7 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
         return
       }
 
-      const selected = selectApprovalUpdates(pending.rawSuggestions, decision)
+      const selected = buildPermissionUpdates(pending.toolName, pending.rawSuggestions, decision)
       const updatedPermissions = selected.length > 0 ? selected : undefined
       if (pending.toolUseId) state.normalizer.markToolApproved(pending.toolUseId)
       pending.resolve({

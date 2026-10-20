@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { safeStorage } from 'electron'
+import { toolRuleName } from '@shared/events'
 import type {
   EffectiveSettings,
   EffortLevel,
@@ -67,10 +68,14 @@ function pickWorkspaceValues(raw: Record<string, unknown>): WorkspaceConfigValue
     values.systemPromptAppend = raw.systemPromptAppend
   }
   if (Array.isArray(raw.allowedTools)) {
-    const rules = raw.allowedTools.filter(
-      (rule): rule is string => typeof rule === 'string' && rule.trim().length > 0
-    )
-    if (rules.length > 0) values.allowedTools = rules
+    const rules = new Set<string>()
+    for (const entry of raw.allowedTools) {
+      if (typeof entry !== 'string') continue
+      // Grants are per tool; older builds stored per-target rules.
+      const name = toolRuleName(entry)
+      if (name) rules.add(name)
+    }
+    if (rules.size > 0) values.allowedTools = [...rules]
   }
   return values
 }
@@ -319,6 +324,25 @@ export class ConfigService {
     const merged = new Set([...(existing.values.allowedTools ?? []), ...rules])
     const next: Record<string, unknown> = { ...existing.raw, allowedTools: [...merged] }
     writeFileSync(localPath, `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+  }
+
+  /**
+   * Revokes a tool grant. Matching is normalised, so removing `WebFetch` also
+   * clears legacy `WebFetch(domain:…)` entries written by older builds.
+   */
+  removeWorkspaceAllowedTool(cwd: string, rule: string): WorkspaceConfigInfo {
+    const dir = join(cwd, RELAY_DIR)
+    const localPath = join(dir, LOCAL_FILE)
+    const target = toolRuleName(rule) ?? rule
+    const existing = readConfigObject(localPath)
+    const kept = (existing.values.allowedTools ?? []).filter(
+      (entry) => toolRuleName(entry) !== target
+    )
+    if (existing.exists) {
+      const next: Record<string, unknown> = { ...existing.raw, allowedTools: kept }
+      writeFileSync(localPath, `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+    }
+    return this.readWorkspaceConfig(cwd)
   }
 
   clearWorkspaceConfig(cwd: string): WorkspaceConfigInfo {

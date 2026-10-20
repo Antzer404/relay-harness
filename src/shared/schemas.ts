@@ -69,6 +69,13 @@ export const workspaceConfigCwdSchema = z
   })
   .strict()
 
+export const removeAllowedToolSchema = z
+  .object({
+    cwd: z.string().trim().min(1).max(4096).optional(),
+    rule: z.string().trim().min(1).max(400)
+  })
+  .strict()
+
 export const windowControlSchema = z.object({
   action: z.enum(['minimize', 'toggle-maximize', 'close'])
 })

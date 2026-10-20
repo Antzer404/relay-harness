@@ -107,6 +107,7 @@ export interface RelayState {
     values: WorkspaceConfigValues
   ) => Promise<IpcResult<BootstrapState>>
   clearWorkspaceConfig: () => Promise<IpcResult<BootstrapState>>
+  removeAllowedTool: (rule: string) => Promise<IpcResult<void>>
 }
 
 // --------------------------------------------------------------------- items
@@ -790,6 +791,14 @@ export const useRelayStore = create<RelayState>((set, get) => ({
       set({ bootstrap: result.data, sessions: result.data.sessions })
     }
     return result
+  },
+
+  removeAllowedTool: async (rule) => {
+    const cwd = get().bootstrap?.settings.workspace
+    const result = await window.relay.removeAllowedTool(cwd, rule)
+    if (!result.ok) return result
+    await get().refreshBootstrap()
+    return { ok: true, data: undefined }
   }
 }))
 

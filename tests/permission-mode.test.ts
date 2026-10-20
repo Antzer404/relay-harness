@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk'
 import { setPermissionModeSchema } from '../src/shared/schemas'
-import { toVisiblePermissionMode } from '../src/shared/events'
-import { selectApprovalUpdates } from '../src/main/runtime/claude-agent-runtime'
+import { toVisiblePermissionMode, toolRuleName } from '../src/shared/events'
+import { buildPermissionUpdates } from '../src/main/runtime/claude-agent-runtime'
 
 describe('permission mode contract', () => {
   it('accepts only the three modes Relay surfaces', () => {
@@ -23,37 +23,75 @@ describe('permission mode contract', () => {
   })
 })
 
-describe('permission approval suggestions', () => {
-  const suggestions: PermissionUpdate[] = [
-    { type: 'setMode', mode: 'acceptEdits', destination: 'session' },
-    { type: 'setMode', mode: 'default', destination: 'session' },
+describe('per-tool grants', () => {
+  it('normalises legacy per-target rules to the tool name', () => {
+    expect(toolRuleName('WebFetch(domain:github.com)')).toBe('WebFetch')
+    expect(toolRuleName('Write(hello.txt)')).toBe('Write')
+    expect(toolRuleName('Bash(npm run test:*)')).toBe('Bash')
+    expect(toolRuleName('Bash')).toBe('Bash')
+    expect(toolRuleName('  ')).toBeNull()
+  })
+
+  const siteSuggestion: PermissionUpdate[] = [
     {
       type: 'addRules',
-      rules: [{ toolName: 'Write', ruleContent: 'hello.txt' }],
+      rules: [{ toolName: 'WebFetch', ruleContent: 'domain:github.com' }],
       behavior: 'allow',
       destination: 'session'
     }
   ]
 
-  it('applies nothing for deny or single allow', () => {
-    expect(selectApprovalUpdates(suggestions, { decision: 'deny' })).toEqual([])
-    expect(selectApprovalUpdates(suggestions, { decision: 'allow' })).toEqual([])
+  it('turns "always" into a whole-tool rule instead of the CLI target rule', () => {
+    expect(
+      buildPermissionUpdates('WebFetch', siteSuggestion, { decision: 'always' })
+    ).toEqual([
+      { type: 'addRules', rules: [{ toolName: 'WebFetch' }], behavior: 'allow', destination: 'session' }
+    ])
   })
 
-  it('applies every suggestion for "always" without a selection', () => {
-    expect(selectApprovalUpdates(suggestions, { decision: 'always' })).toHaveLength(3)
+  it('never persists a standing ExitPlanMode grant', () => {
+    expect(buildPermissionUpdates('ExitPlanMode', [], { decision: 'always' })).toEqual([])
+    expect(
+      buildPermissionUpdates('ExitPlanMode', siteSuggestion, { decision: 'always' })
+    ).toEqual([])
+  })
+
+  it('works when the CLI offers no suggestions at all', () => {
+    expect(buildPermissionUpdates('Write', [], { decision: 'always' })).toEqual([
+      { type: 'addRules', rules: [{ toolName: 'Write' }], behavior: 'allow', destination: 'session' }
+    ])
+  })
+
+  it('applies nothing for deny or single allow', () => {
+    expect(buildPermissionUpdates('WebFetch', siteSuggestion, { decision: 'deny' })).toEqual([])
+    expect(buildPermissionUpdates('WebFetch', siteSuggestion, { decision: 'allow' })).toEqual([])
+  })
+})
+
+describe('plan approval suggestions', () => {
+  const planSuggestions: PermissionUpdate[] = [
+    { type: 'setMode', mode: 'acceptEdits', destination: 'session' },
+    { type: 'setMode', mode: 'default', destination: 'session' }
+  ]
+
+  it('keeps only setMode suggestions for a plan approval', () => {
+    expect(
+      buildPermissionUpdates('ExitPlanMode', planSuggestions, { decision: 'always' })
+    ).toEqual(planSuggestions)
   })
 
   it('applies only the picked suggestion when an index is given', () => {
-    expect(selectApprovalUpdates(suggestions, { decision: 'always', suggestionIndex: 0 })).toEqual([
-      suggestions[0]
-    ])
-    expect(selectApprovalUpdates(suggestions, { decision: 'always', suggestionIndex: 2 })).toEqual([
-      suggestions[2]
-    ])
-  })
-
-  it('ignores out-of-range selections', () => {
-    expect(selectApprovalUpdates(suggestions, { decision: 'always', suggestionIndex: 9 })).toEqual([])
+    expect(
+      buildPermissionUpdates('ExitPlanMode', planSuggestions, {
+        decision: 'always',
+        suggestionIndex: 1
+      })
+    ).toEqual([planSuggestions[1]])
+    expect(
+      buildPermissionUpdates('ExitPlanMode', planSuggestions, {
+        decision: 'always',
+        suggestionIndex: 9
+      })
+    ).toEqual([])
   })
 })

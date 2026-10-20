@@ -26,6 +26,8 @@ const api: RelayApi = {
     ipcRenderer.invoke(IPC_CHANNELS.writeWorkspaceConfig, { cwd, values }),
   clearWorkspaceConfig: (cwd) =>
     ipcRenderer.invoke(IPC_CHANNELS.clearWorkspaceConfig, { cwd }),
+  removeAllowedTool: (cwd, rule) =>
+    ipcRenderer.invoke(IPC_CHANNELS.removeAllowedTool, { cwd, rule }),
   windowControl: (action) => ipcRenderer.invoke(IPC_CHANNELS.windowControl, { action }),
   onEvent: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: RelayEvent): void => {

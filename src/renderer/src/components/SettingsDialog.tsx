@@ -47,6 +47,7 @@ function SettingsBody(): React.JSX.Element | null {
   const chooseWorkspace = useRelayStore((state) => state.chooseWorkspace)
   const writeWorkspaceConfig = useRelayStore((state) => state.writeWorkspaceConfig)
   const clearWorkspaceConfig = useRelayStore((state) => state.clearWorkspaceConfig)
+  const removeAllowedTool = useRelayStore((state) => state.removeAllowedTool)
 
   const [tab, setTab] = useState<Tab>('general')
   const [status, setStatus] = useState<Status>(null)
@@ -165,6 +166,16 @@ function SettingsBody(): React.JSX.Element | null {
       setWsEffort('')
       setWsPermission('')
       setWsPrompt('')
+    })
+
+  const revokeTool = (rule: string): Promise<void> =>
+    run(async () => {
+      const result = await removeAllowedTool(rule)
+      setStatus(
+        result.ok
+          ? { kind: 'ok', message: `已移除工具授权「${rule}」。` }
+          : { kind: 'error', message: result.error.message }
+      )
     })
 
   const storageText =
@@ -429,15 +440,26 @@ function SettingsBody(): React.JSX.Element | null {
               ) : null}
               {(workspaceConfig?.values.allowedTools ?? []).length > 0 ? (
                 <div className="rly-allowed-tools">
-                  <span className="rly-field-label">已持久化的允许规则</span>
+                  <span className="rly-field-label">已允许的工具</span>
                   <ul>
                     {workspaceConfig?.values.allowedTools?.map((rule) => (
                       <li key={rule}>
                         <code>{rule}</code>
+                        <button
+                          type="button"
+                          className="rly-rule-remove"
+                          disabled={saving}
+                          onClick={() => void revokeTool(rule)}
+                        >
+                          移除
+                        </button>
                       </li>
                     ))}
                   </ul>
-                  <p className="rly-hint">由「始终允许」累积，保存在 settings.local.json。</p>
+                  <p className="rly-hint">
+                    授权按工具整体生效：「WebFetch」覆盖所有网站，「Write」覆盖所有文件。旧版按网站/文件
+                    写入的规则会自动归并为工具名；累积记录保存在 settings.local.json。
+                  </p>
                 </div>
               ) : null}
 

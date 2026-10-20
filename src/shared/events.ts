@@ -157,6 +157,17 @@ export function toVisiblePermissionMode(value: unknown): VisiblePermissionMode {
   return value === 'plan' || value === 'acceptEdits' ? value : 'default'
 }
 
+/**
+ * "Always allow" grants the whole tool, never a single target: `WebFetch`
+ * covers every site, `Write` every file. Rules persisted by older builds may
+ * still carry a target (`WebFetch(domain:example.com)`); callers normalise
+ * them to the bare tool name.
+ */
+export function toolRuleName(rule: string): string | null {
+  const name = rule.split('(')[0]?.trim()
+  return name ? name : null
+}
+
 export interface SetPermissionModeResult {
   /** `session`: applied to the live session; `default`: stored for the next one. */
   scope: 'session' | 'default'

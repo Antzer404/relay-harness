@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '@shared/ipc'
 import {
   apiKeySchema,
   permissionDecisionSchema,
+  removeAllowedToolSchema,
   renameSessionSchema,
   sendSchema,
   sessionIdSchema,
@@ -195,6 +196,16 @@ export function registerIpc({ appVersion, config, sessions, getWindow }: IpcDeps
 
   ipcMain.handle(IPC_CHANNELS.clearWorkspaceConfig, (_event, raw: unknown) =>
     run(() => config.clearWorkspaceConfig(parseCwd(config, raw)))
+  )
+
+  ipcMain.handle(IPC_CHANNELS.removeAllowedTool, (_event, raw: unknown) =>
+    run(() => {
+      const { cwd, rule } = removeAllowedToolSchema.parse(raw)
+      return config.removeWorkspaceAllowedTool(
+        cwd ?? config.getSettings().workspace,
+        rule
+      )
+    })
   )
 
   ipcMain.handle(IPC_CHANNELS.windowControl, (_event, raw: unknown) =>

@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import type {
   HarnessEvent,
   PermissionDecision,
-  PermissionSuggestionView,
   RelayEvent,
   SessionDetail,
   SessionRecord,
@@ -42,11 +41,17 @@ function titleFromText(text: string): string {
   return clean.length > 32 ? `${clean.slice(0, 32)}…` : clean
 }
 
+interface PendingGrant {
+  toolName: string
+  /** False for plan approvals, whose suggestions only switch the mode. */
+  toolLevel: boolean
+}
+
 export class SessionManager {
   private readonly runtime = new ClaudeAgentRuntime()
   private readonly store: SessionStore
   private current: SessionSummary | null = null
-  private readonly permissionSuggestions = new Map<string, PermissionSuggestionView[]>()
+  private readonly permissionSuggestions = new Map<string, PendingGrant>()
   private seq = 0
 
   constructor(
@@ -203,19 +208,10 @@ export class SessionManager {
 
   respondPermission(decision: PermissionDecision): void {
     if (decision.decision === 'always' && this.current) {
-      const suggestions = this.permissionSuggestions.get(decision.requestId) ?? []
-      const rules = suggestions
-        .filter(
-          (entry) =>
-            entry.toolName &&
-            entry.ruleContent &&
-            entry.label.includes('(') &&
-            entry.mode === undefined
-        )
-        .map((entry) => `${entry.toolName}(${entry.ruleContent})`)
-      if (rules.length > 0) {
+      const grant = this.permissionSuggestions.get(decision.requestId)
+      if (grant?.toolLevel) {
         try {
-          this.config.addWorkspaceAllowedTools(this.current.cwd, rules)
+          this.config.addWorkspaceAllowedTools(this.current.cwd, [grant.toolName])
         } catch {
           // A read-only workspace must not break the approval itself.
         }
@@ -260,7 +256,12 @@ export class SessionManager {
     }
 
     if (event.type === 'permission_request') {
-      this.permissionSuggestions.set(event.requestId, event.suggestions)
+      this.permissionSuggestions.set(event.requestId, {
+        toolName: event.toolName,
+        toolLevel:
+          event.toolName !== 'ExitPlanMode' &&
+          !event.suggestions.some((entry) => entry.mode !== undefined)
+      })
     }
 
     const envelope: RelayEvent = {
