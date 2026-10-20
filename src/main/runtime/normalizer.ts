@@ -2,6 +2,7 @@ import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { toVisiblePermissionMode } from '@shared/events'
 import type { FileDiff, HarnessEvent, UsageSnapshot } from '@shared/events'
 import { buildFileDiff, FILE_EDIT_TOOLS, snapshotTarget, type TargetSnapshot } from './tool-diff'
+import { describeRuntimeFailure } from './error-text'
 
 type Emit = (event: HarnessEvent) => void
 
@@ -302,12 +303,13 @@ export class EventNormalizer {
       return
     }
     if (message.subtype === 'api_retry') {
+      const failure = describeRuntimeFailure(message.error, '')
       this.emit({
         type: 'error',
         code: message.error,
         message: `API 请求失败（第 ${message.attempt} 次），${Math.round(
           message.retry_delay_ms / 1000
-        )} 秒后重试`,
+        )} 秒后自动重试。\n${failure.message}`,
         retryable: true
       })
     }
@@ -586,7 +588,14 @@ export class EventNormalizer {
         message.subtype === 'success'
           ? String((message as { result?: string }).result ?? '本轮执行失败')
           : message.errors.join('\n') || message.subtype
-      this.emit({ type: 'error', code: message.subtype, message: detail, retryable: false })
+      const code = message.subtype === 'success' ? 'runtime_failure' : message.subtype
+      const failure = describeRuntimeFailure(code, detail)
+      this.emit({
+        type: 'error',
+        code,
+        message: failure.message,
+        retryable: failure.retryable
+      })
     }
 
     this.emit({

@@ -63,6 +63,8 @@ export interface PermissionItem {
 export interface ErrorItem {
   kind: 'error'
   id: string
+  /** Runtime/provider code, e.g. authentication_failed or runtime_failure. */
+  code?: string
   message: string
   retryable: boolean
   at: number

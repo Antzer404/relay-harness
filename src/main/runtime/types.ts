@@ -48,6 +48,8 @@ export interface RuntimeAdapter {
   respondPermission(decision: PermissionDecision): void
   denyAllPermissions(sessionId: string, reason: string): void
   getUsage(sessionId: string): UsageSnapshot | null
+  /** False when the CLI process died; the next send should rebuild the session. */
+  isAlive(sessionId: string): boolean
   dispose(sessionId: string): Promise<void>
   disposeAll(): Promise<void>
   onEvent(listener: (sessionId: string, event: HarnessEvent) => void): () => void

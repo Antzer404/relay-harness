@@ -188,6 +188,17 @@ function closeStreams(items: TimelineItem[], toolMessage: string): TimelineItem[
   )
 }
 
+/** A dead runtime can no longer receive an answer for a pending card. */
+function denyPendingPermissions(items: TimelineItem[]): TimelineItem[] {
+  let changed = false
+  const next = items.map((item) => {
+    if (item.kind !== 'permission' || item.status !== 'pending') return item
+    changed = true
+    return { ...item, status: 'denied' as const }
+  })
+  return changed ? next : items
+}
+
 /** Applies one runtime event to the timeline; used for live and replayed events. */
 function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): TimelineItem[] {  switch (event.type) {
     case 'user_message':
@@ -345,6 +356,7 @@ function reduceItems(items: TimelineItem[], event: HarnessEvent, ts: number): Ti
       return addItem(items, {
         kind: 'error',
         id: nextId('error'),
+        code: event.code,
         message: event.message,
         retryable: event.retryable,
         at: ts
@@ -391,13 +403,14 @@ function applyEventCore(state: RelayState, envelope: RelayEvent): RelayState {
   switch (event.type) {
     case 'status': {
       const interrupted = event.state === 'stopped' || event.state === 'error'
+      const closed = interrupted
+        ? denyPendingPermissions(closeRunningTools(items, '会话已停止，工具未返回结果。'))
+        : items
       return {
         ...state,
         trace,
         phase: event.state,
-        items: interrupted
-          ? closeRunningTools(items, '会话已停止，工具未返回结果。')
-          : items
+        items: closed
       }
     }
     case 'turn_end':

@@ -8,6 +8,7 @@ export function ThinkingBlock({ item }: { item: ThinkingItem }): React.JSX.Eleme
   // Open while streaming, collapsed once done — unless the user toggled it.
   // The toggle lives outside the component so virtual scrolling cannot lose it.
   const [open, setOpen] = useState(() => getItemOpen(item.id) ?? !item.done)
+  const [toggles, setToggles] = useState(0)
 
   useEffect(() => {
     if (getItemOpen(item.id) === undefined) setOpen(!item.done)
@@ -22,6 +23,7 @@ export function ThinkingBlock({ item }: { item: ThinkingItem }): React.JSX.Eleme
         className="rly-thinking-head"
         aria-expanded={open}
         onClick={() => {
+          setToggles((value) => value + 1)
           setOpen((value) => {
             const next = !value
             setItemOpen(item.id, next)
@@ -39,7 +41,7 @@ export function ThinkingBlock({ item }: { item: ThinkingItem }): React.JSX.Eleme
         <IconChevron size={13} />
       </button>
       {open ? (
-        <div className="rly-thinking-body">
+        <div className={`rly-thinking-body${toggles > 0 ? ' is-animated' : ''}`}>
           <pre>{item.text}</pre>
         </div>
       ) : null}

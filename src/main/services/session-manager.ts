@@ -301,8 +301,14 @@ export class SessionManager {
     return summary
   }
 
-  send(text: string): void {
+  async send(text: string): Promise<void> {
     if (!this.current) throw new RelayError('no_session', '尚未启动会话')
+    // A crashed CLI leaves the durable session intact; rebuild it on the next
+    // message instead of making the user reopen the session manually.
+    if (!this.runtime.isAlive(this.current.id)) {
+      await this.startSession({ sessionId: this.current.id })
+    }
+    if (!this.current) throw new RelayError('no_session', '会话未能重新启动')
     const sessionId = this.current.id
     const record = this.store.get(sessionId)
 
@@ -488,6 +494,21 @@ export class SessionManager {
     await this.runtime.dispose(id)
     if (this.current?.id === id) this.current = null
     this.permissionSuggestions.clear()
+  }
+
+  /**
+   * The CLI captures credentials at process start. After the key changes we
+   * retire the live process but keep the session, so the next message resumes
+   * it with the new key (`send` rebuilds a missing runtime).
+   */
+  async invalidateRuntime(): Promise<void> {
+    const id = this.current?.id
+    if (id) {
+      await this.runtime.dispose(id)
+      this.permissionSuggestions.clear()
+      return
+    }
+    await this.runtime.disposeAll()
   }
 
   async dispose(): Promise<void> {

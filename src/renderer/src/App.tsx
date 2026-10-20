@@ -79,6 +79,13 @@ export function App(): React.JSX.Element {
               <div className="rly-fatal-mark">!</div>
               <h1>运行时不可用</h1>
               <p>{fatal}</p>
+              <button
+                type="button"
+                className="rly-btn rly-btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                重新加载
+              </button>
             </div>
           ) : bootstrapped ? (
             <>

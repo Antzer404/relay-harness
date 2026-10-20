@@ -109,6 +109,18 @@ export function Composer(): React.JSX.Element {
   const queued = useRelayStore((state) => state.queued)
   const hasKey = useRelayStore((state) => state.bootstrap?.hasApiKey ?? false)
   const windowKind = useRelayStore((state) => state.windowKind)
+  const [online, setOnline] = useState(() => navigator.onLine)
+
+  useEffect(() => {
+    const up = (): void => setOnline(true)
+    const down = (): void => setOnline(false)
+    window.addEventListener('online', up)
+    window.addEventListener('offline', down)
+    return () => {
+      window.removeEventListener('online', up)
+      window.removeEventListener('offline', down)
+    }
+  }, [])
   const usage = useRelayStore((state) => state.usage)
   const threshold = useRelayStore(
     (state) => state.bootstrap?.settings.handoffThreshold ?? 70
@@ -170,6 +182,11 @@ export function Composer(): React.JSX.Element {
 
   return (
     <div className="rly-composer-dock">
+      {!online ? (
+        <div className="rly-net-alert" role="status">
+          <span>网络已断开，消息可能无法送达。恢复后点错误卡片上的「重试上一条」即可。</span>
+        </div>
+      ) : null}
       {pressure && usage ? (
         <div className="rly-context-alert" role="status">
           <span className="rly-context-alert-text">

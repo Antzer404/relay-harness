@@ -17,6 +17,7 @@ import type {
   VisiblePermissionMode
 } from '@shared/events'
 import { EventNormalizer } from './normalizer'
+import { describeRuntimeFailure } from './error-text'
 import type {
   RuntimeAdapter,
   RuntimeSessionHandle,
@@ -305,15 +306,25 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
       if (!state.closed) {
         const detail = error instanceof Error ? error.message : String(error)
         const tail = state.stderr.slice(-5).join('\n')
+        const failure = describeRuntimeFailure('runtime_failure', tail ? `${detail}\n${tail}` : detail)
+        // The query object cannot be reused after this point. Dropping the
+        // state object lets the next send rebuild the session transparently.
+        state.closed = true
+        this.sessions.delete(sessionId)
         this.emit(sessionId, {
           type: 'error',
           code: 'runtime_failure',
-          message: tail ? `${detail}\n${tail}` : detail,
-          retryable: false
+          message: failure.message,
+          retryable: failure.retryable
         })
         this.emitStatus(sessionId, 'error')
       }
     } finally {
+      if (!state.closed) {
+        state.closed = true
+        this.sessions.delete(sessionId)
+        this.emitStatus(sessionId, 'stopped')
+      }
       state.input.close()
       for (const [requestId, pending] of state.permissions) {
         pending.cleanup()
@@ -417,6 +428,12 @@ export class ClaudeAgentRuntime implements RuntimeAdapter {
 
   getUsage(sessionId: string): UsageSnapshot | null {
     return this.sessions.get(sessionId)?.usage ?? null
+  }
+
+  /** False once the CLI process died or the session was disposed. */
+  isAlive(sessionId: string): boolean {
+    const state = this.sessions.get(sessionId)
+    return Boolean(state && !state.closed)
   }
 
   async dispose(sessionId: string): Promise<void> {

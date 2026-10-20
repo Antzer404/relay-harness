@@ -93,6 +93,11 @@ export class HostRegistry {
     )
   }
 
+  /** Applied after the API key changes: every window resumes with the new key. */
+  async invalidateRuntimes(): Promise<void> {
+    await Promise.all(this.all().map((host) => host.sessions.invalidateRuntime()))
+  }
+
   private createHost(
     kind: SessionHost['kind'],
     folder: string | null,

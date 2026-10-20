@@ -29,6 +29,9 @@
   --shadow-1: 0 1px 2px rgba(20, 24, 35, 0.05), 0 8px 24px rgba(20, 24, 35, 0.07);
   --shadow-2: 0 24px 70px rgba(20, 24, 35, 0.18);
   --ring: 0 0 0 3px rgba(201, 117, 42, 0.22);
+  --glass-highlight: rgba(255, 255, 255, 0.55);
+  --ease-out: cubic-bezier(0.22, 0.8, 0.28, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1.1);
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --sans: "Inter", "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
     "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
@@ -63,6 +66,7 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
   --shadow-2: 0 30px 80px rgba(0, 0, 0, 0.55);
   --ring: 0 0 0 3px rgba(226, 160, 95, 0.24);
+  --glass-highlight: rgba(255, 255, 255, 0.07);
 }
 
 * {
@@ -3210,4 +3214,215 @@ button.rly-team-member:hover {
 
 .rly-agent-message.is-error .rly-agent-message-tool code {
   color: var(--danger);
+}
+
+/* ------------------------------------------------------- polish pass */
+
+@keyframes rly-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rly-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rly-bubble {
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-tool {
+  background: var(--surface);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out);
+}
+
+.rly-tool:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-tool.is-running {
+  background: linear-gradient(135deg, var(--accent-soft), transparent 62%), var(--surface);
+}
+
+.rly-thinking {
+  background: var(--surface);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: border-color 0.16s var(--ease-out), background 0.16s var(--ease-out);
+}
+
+.rly-thinking:hover {
+  border-color: var(--border-strong);
+}
+
+.rly-permission {
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-error {
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-context-alert {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.rly-net-alert {
+  max-width: 860px;
+  margin: 0 auto 8px;
+  padding: 7px 14px;
+  border-radius: 12px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(194, 71, 63, 0.25);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: rly-fade-up 0.18s var(--ease-out) both;
+}
+
+.rly-tool-detail.is-animated,
+.rly-thinking-body.is-animated,
+.rly-permission-params.is-animated {
+  animation: rly-expand 0.18s var(--ease-out) both;
+}
+
+.rly-form {
+  animation: rly-fade 0.18s var(--ease-out) both;
+}
+
+.rly-session {
+  transition: background 0.16s var(--ease-out), border-color 0.16s var(--ease-out),
+    box-shadow 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+
+.rly-session:hover {
+  transform: translateX(1px);
+}
+
+.rly-settings,
+.rly-handoff,
+.rly-trace-drawer {
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-agent-drawer {
+  background: linear-gradient(160deg, var(--surface-dialog), var(--surface-strong));
+}
+
+.rly-composer {
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-composer:focus-within {
+  box-shadow: var(--shadow-2), var(--ring), inset 0 1px 0 var(--glass-highlight);
+}
+
+.rly-btn {
+  transition: background 0.15s var(--ease-out), border-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out), filter 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+
+.rly-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.rly-team {
+  background: linear-gradient(to top, var(--surface-soft), transparent 72%);
+}
+
+.rly-team-member {
+  transition: background 0.16s var(--ease-out), border-color 0.16s var(--ease-out),
+    box-shadow 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+
+button.rly-team-member:hover {
+  transform: translateY(-1px);
+}
+
+.rly-team-member.is-active {
+  background: var(--surface-strong);
+  border-color: var(--border);
+  box-shadow: var(--shadow-1);
+}
+
+.rly-team-feed-item {
+  animation: rly-fade-up 0.18s var(--ease-out) both;
+}
+
+.rly-agent-message {
+  animation: rly-fade-up 0.18s var(--ease-out) both;
+}
+
+.rly-agent-summary {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Software rendering: keep layout identical, drop the new GPU-only effects. */
+html[data-lowfx='1'] .rly-bubble,
+html[data-lowfx='1'] .rly-tool,
+html[data-lowfx='1'] .rly-thinking,
+html[data-lowfx='1'] .rly-permission,
+html[data-lowfx='1'] .rly-error,
+html[data-lowfx='1'] .rly-context-alert,
+html[data-lowfx='1'] .rly-net-alert,
+html[data-lowfx='1'] .rly-agent-summary {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Local expand/fade animations touch small areas only; they stay on even in
+   software mode. Window-sized entrances are the ones disabled earlier. */
+
+html[data-lowfx='1'] .rly-session:hover,
+html[data-lowfx='1'] button.rly-team-member:hover {
+  transform: none;
+}
+
+.rly-permission:not(.is-allowed):not(.is-denied) .rly-permission-dot {
+  animation: rly-pulse 2.2s ease-in-out infinite;
+}
+
+.rly-team-member.is-running .rly-team-dot {
+  animation: rly-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rly-permission:not(.is-allowed):not(.is-denied) .rly-permission-dot,
+  .rly-team-member.is-running .rly-team-dot {
+    animation: none;
+  }
+}
+
+.rly-fatal .rly-btn {
+  margin-top: 16px;
 }

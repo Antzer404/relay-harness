@@ -13,6 +13,7 @@ export function TeamPanel(): React.JSX.Element | null {
   const project = useRelayStore((state) => state.project)
   const team = useRelayStore((state) => state.team)
   const openAgent = useRelayStore((state) => state.openAgent)
+  const activeAgentId = useRelayStore((state) => state.activeAgentId)
   const [tab, setTab] = useState<'members' | 'feed'>('members')
   const feedRef = useRef<HTMLDivElement | null>(null)
 
@@ -85,7 +86,9 @@ export function TeamPanel(): React.JSX.Element | null {
               <button
                 key={agent.id}
                 type="button"
-                className={`rly-team-member ${statusClass(agent)}`}
+                className={`rly-team-member ${statusClass(agent)}${
+                  activeAgentId === agent.id ? ' is-active' : ''
+                }`}
                 onClick={() => openAgent(agent.id)}
                 title="查看该成员的完整过程"
               >

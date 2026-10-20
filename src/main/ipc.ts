@@ -98,16 +98,18 @@ export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.setApiKey, (_event, raw: unknown) =>
-    run(() => {
+    run(async () => {
       const { key } = apiKeySchema.parse(raw)
       const keyStorage = config.setApiKey(key)
+      await hosts.invalidateRuntimes()
       return { keyStorage }
     })
   )
 
   ipcMain.handle(IPC_CHANNELS.clearApiKey, () =>
-    run(() => {
+    run(async () => {
       config.clearApiKey()
+      await hosts.invalidateRuntimes()
       return undefined
     })
   )
@@ -172,10 +174,10 @@ export function registerIpc({ appVersion, config, hosts }: IpcDeps): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.send, (event, raw: unknown) =>
-    run(() => {
+    run(async () => {
       const host = hostOf(hosts, event)
       const { text } = sendSchema.parse(raw)
-      host.sessions.send(text)
+      await host.sessions.send(text)
       return undefined
     })
   )

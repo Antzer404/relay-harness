@@ -25,7 +25,7 @@ const TOOL_GLYPH: Record<string, string> = {
 export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
   // Kept outside the component so scrolling the card out of the virtual
   // window does not collapse it.
-  const [open, toggleOpen] = useItemOpen(item.id, false)
+  const [open, toggleOpen, toggles] = useItemOpen(item.id, false)
   const summary = toolSummary(item.name, item.input)
   const glyph = TOOL_GLYPH[item.name] ?? item.name.slice(0, 1).toUpperCase()
 
@@ -65,7 +65,7 @@ export function ToolCard({ item }: { item: ToolItem }): React.JSX.Element {
       </button>
 
       {open ? (
-        <div className="rly-tool-detail">
+        <div className={`rly-tool-detail${toggles > 0 ? ' is-animated' : ''}`}>
           {item.diff ? (
             <div className="rly-tool-block">
               <div className="rly-tool-block-label">改动</div>

@@ -12,7 +12,10 @@ const MODE_APPROVAL_LABEL: Record<string, string> = {
 export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.Element {
   const respond = useRelayStore((state) => state.respondPermission)
   const project = useRelayStore((state) => state.project)
-  const [showParams, toggleParams] = useItemOpen(permissionParamsKey(item.id), false)
+  const [showParams, toggleParams, paramToggles] = useItemOpen(
+    permissionParamsKey(item.id),
+    false
+  )
 
   const agentLabel = item.agentName
     ? (project?.agents.find((agent) => agent.id === item.agentName)?.label ?? item.agentName)
@@ -65,7 +68,13 @@ export function PermissionCard({ item }: { item: PermissionItem }): React.JSX.El
           >
             {showParams ? '收起参数' : '查看参数'}
           </button>
-          {showParams ? <pre className="rly-permission-params">{prettyJson(item.input)}</pre> : null}
+          {showParams ? (
+            <pre
+              className={`rly-permission-params${paramToggles > 0 ? ' is-animated' : ''}`}
+            >
+              {prettyJson(item.input)}
+            </pre>
+          ) : null}
 
           {modeChoices.length > 0 ? (
             <p className="rly-permission-scope">批准后会切换本次会话的权限模式</p>
